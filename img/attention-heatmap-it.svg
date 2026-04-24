@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 205" style="font-family: system-ui, -apple-system, sans-serif; background: #ffffff; border-radius: 8px;">
+
+  <!-- Background -->
+  <rect width="900" height="205" fill="#ffffff" rx="8"/>
+
+  <!-- Title -->
+  <text x="450" y="24" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a" letter-spacing="0.01em">
+    Attention weights when processing the token "it"
+  </text>
+  <text x="450" y="40" text-anchor="middle" font-size="11" fill="#94a3b8" font-style="italic">
+    "The animal didn't cross the street because it was too tired ."
+  </text>
+
+  <!-- Row label -->
+  <text x="12" y="101" font-size="11" font-weight="600" fill="#64748b">it  →</text>
+
+  <!-- Cells: 12 tokens starting at x=65, each 69px wide, 65px tall, top at y=55 -->
+
+  <!-- The: 0.02 -->
+  <rect x="65"  y="55" width="68" height="65" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="99"  y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.02</text>
+  <text x="99"  y="143" text-anchor="middle" font-size="11" fill="#475569">The</text>
+
+  <!-- animal: 0.62 — dominant, deep blue -->
+  <rect x="133" y="55" width="68" height="65" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="1.5" rx="3"/>
+  <text x="167" y="86" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">0.62</text>
+  <text x="167" y="100" text-anchor="middle" font-size="10" fill="#bfdbfe">★ highest</text>
+  <text x="167" y="143" text-anchor="middle" font-size="11" font-weight="600" fill="#1d4ed8">animal</text>
+
+  <!-- didn't: 0.03 -->
+  <rect x="201" y="55" width="68" height="65" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="235" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.03</text>
+  <text x="235" y="143" text-anchor="middle" font-size="11" fill="#475569">didn't</text>
+
+  <!-- cross: 0.04 -->
+  <rect x="269" y="55" width="68" height="65" fill="#eaf2ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="303" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#93a8c8">0.04</text>
+  <text x="303" y="143" text-anchor="middle" font-size="11" fill="#475569">cross</text>
+
+  <!-- the: 0.01 -->
+  <rect x="337" y="55" width="68" height="65" fill="#f5f9ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="371" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.01</text>
+  <text x="371" y="143" text-anchor="middle" font-size="11" fill="#475569">the</text>
+
+  <!-- street: 0.08 -->
+  <rect x="405" y="55" width="68" height="65" fill="#c7d9fd" stroke="#93c5fd" stroke-width="1" rx="3"/>
+  <text x="439" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#2d5da8">0.08</text>
+  <text x="439" y="143" text-anchor="middle" font-size="11" fill="#475569">street</text>
+
+  <!-- because: 0.04 -->
+  <rect x="473" y="55" width="68" height="65" fill="#eaf2ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="507" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#93a8c8">0.04</text>
+  <text x="507" y="143" text-anchor="middle" font-size="11" fill="#475569">because</text>
+
+  <!-- it (self): 0.07 -->
+  <rect x="541" y="55" width="68" height="65" fill="#dbeafe" stroke="#93c5fd" stroke-width="1" rx="3"/>
+  <text x="575" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#2d5da8">0.07</text>
+  <text x="575" y="143" text-anchor="middle" font-size="11" font-style="italic" fill="#475569">it</text>
+
+  <!-- was: 0.03 -->
+  <rect x="609" y="55" width="68" height="65" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="643" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.03</text>
+  <text x="643" y="143" text-anchor="middle" font-size="11" fill="#475569">was</text>
+
+  <!-- too: 0.02 -->
+  <rect x="677" y="55" width="68" height="65" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="711" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.02</text>
+  <text x="711" y="143" text-anchor="middle" font-size="11" fill="#475569">too</text>
+
+  <!-- tired: 0.02 -->
+  <rect x="745" y="55" width="68" height="65" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="779" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.02</text>
+  <text x="779" y="143" text-anchor="middle" font-size="11" fill="#475569">tired</text>
+
+  <!-- .: 0.02 -->
+  <rect x="813" y="55" width="68" height="65" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="3"/>
+  <text x="847" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">0.02</text>
+  <text x="847" y="143" text-anchor="middle" font-size="11" fill="#475569">.</text>
+
+  <!-- Legend -->
+  <text x="65"  y="180" font-size="10" fill="#94a3b8">low attention</text>
+  <rect x="140" y="168" width="16" height="11" fill="#f0f7ff" stroke="#bfdbfe" stroke-width="1" rx="2"/>
+  <rect x="158" y="168" width="16" height="11" fill="#dbeafe" stroke="#93c5fd" stroke-width="1" rx="2"/>
+  <rect x="176" y="168" width="16" height="11" fill="#93c5fd" stroke="#60a5fa" stroke-width="1" rx="2"/>
+  <rect x="194" y="168" width="16" height="11" fill="#3b82f6" stroke="#2563eb" stroke-width="1" rx="2"/>
+  <rect x="212" y="168" width="16" height="11" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="1" rx="2"/>
+  <text x="232" y="180" font-size="10" fill="#94a3b8">high attention</text>
+
+  <text x="450" y="197" text-anchor="middle" font-size="10" fill="#cbd5e1" font-style="italic">
+    Approximate values based on Vaswani et al. (2017) Figure 3. Each row sums to 1.
+  </text>
+</svg>
