@@ -1,7 +1,9 @@
 # Aible v2 — Phase 0 Audit and Plan
 
-Working title: *Agentic Systems for Dummies* (see naming note in §6).
-Branch: `aible-v2`. Status: Phase 0 complete, awaiting review.
+Title: *Agentic Systems: Patterns and Teardowns* (decided at Phase 0 review).
+Branch: `aible-v2`. Status: Phase 0 reviewed 2026-09-01; Phase 1 pilot in progress.
+
+Decisions taken at Phase 0 review: D1 sidebar-only reorganisation, v1 URLs unchanged. D2 repo paths as listed. D3 question list before Phase 3. D4 title above. D5 v1 diagrams untouched.
 
 ---
 

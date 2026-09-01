@@ -31,3 +31,105 @@
 .alert--success {
   border-left: 4px solid var(--ifm-color-primary);
 }
+
+/* ── v2 diagram palette ────────────────────────────────────────────────────
+   Mermaid nodes in v2 chapters are tagged :::orch :::agent :::gate :::store
+   :::human :::external :::fail. Colours live here, not inside diagrams, so
+   light and dark both render and every figure shares one visual language.
+   Mermaid's own <style> is id-scoped, hence !important. */
+
+:root {
+  --dg-orch-bg: #dbeafe;  --dg-orch-line: #2563eb;  --dg-orch-text: #1e3a8a;
+  --dg-agent-bg: #ede9fe; --dg-agent-line: #7c3aed; --dg-agent-text: #4c1d95;
+  --dg-gate-bg: #fef3c7;  --dg-gate-line: #d97706;  --dg-gate-text: #78350f;
+  --dg-store-bg: #d1fae5; --dg-store-line: #059669; --dg-store-text: #064e3b;
+  --dg-human-bg: #ffe4e6; --dg-human-line: #e11d48; --dg-human-text: #881337;
+  --dg-ext-bg: #f3f4f6;   --dg-ext-line: #6b7280;   --dg-ext-text: #111827;
+  --dg-fail-bg: #fee2e2;  --dg-fail-line: #dc2626;  --dg-fail-text: #7f1d1d;
+}
+
+[data-theme='dark'] {
+  --dg-orch-bg: #1e3a8a;  --dg-orch-line: #60a5fa;  --dg-orch-text: #dbeafe;
+  --dg-agent-bg: #4c1d95; --dg-agent-line: #a78bfa; --dg-agent-text: #ede9fe;
+  --dg-gate-bg: #78350f;  --dg-gate-line: #fbbf24;  --dg-gate-text: #fef3c7;
+  --dg-store-bg: #064e3b; --dg-store-line: #34d399; --dg-store-text: #d1fae5;
+  --dg-human-bg: #881337; --dg-human-line: #fb7185; --dg-human-text: #ffe4e6;
+  --dg-ext-bg: #1f2937;   --dg-ext-line: #9ca3af;   --dg-ext-text: #f3f4f6;
+  --dg-fail-bg: #7f1d1d;  --dg-fail-line: #f87171;  --dg-fail-text: #fee2e2;
+}
+
+.docusaurus-mermaid-container .node.orch rect,
+.docusaurus-mermaid-container .node.orch polygon,
+.docusaurus-mermaid-container .node.orch circle,
+.docusaurus-mermaid-container .node.orch path { fill: var(--dg-orch-bg) !important; stroke: var(--dg-orch-line) !important; }
+.docusaurus-mermaid-container .node.orch .nodeLabel,
+.docusaurus-mermaid-container .node.orch text { color: var(--dg-orch-text) !important; fill: var(--dg-orch-text) !important; }
+
+.docusaurus-mermaid-container .node.agent rect,
+.docusaurus-mermaid-container .node.agent polygon,
+.docusaurus-mermaid-container .node.agent circle,
+.docusaurus-mermaid-container .node.agent path { fill: var(--dg-agent-bg) !important; stroke: var(--dg-agent-line) !important; }
+.docusaurus-mermaid-container .node.agent .nodeLabel,
+.docusaurus-mermaid-container .node.agent text { color: var(--dg-agent-text) !important; fill: var(--dg-agent-text) !important; }
+
+.docusaurus-mermaid-container .node.gate rect,
+.docusaurus-mermaid-container .node.gate polygon,
+.docusaurus-mermaid-container .node.gate circle,
+.docusaurus-mermaid-container .node.gate path { fill: var(--dg-gate-bg) !important; stroke: var(--dg-gate-line) !important; }
+.docusaurus-mermaid-container .node.gate .nodeLabel,
+.docusaurus-mermaid-container .node.gate text { color: var(--dg-gate-text) !important; fill: var(--dg-gate-text) !important; }
+
+.docusaurus-mermaid-container .node.store rect,
+.docusaurus-mermaid-container .node.store polygon,
+.docusaurus-mermaid-container .node.store circle,
+.docusaurus-mermaid-container .node.store path { fill: var(--dg-store-bg) !important; stroke: var(--dg-store-line) !important; }
+.docusaurus-mermaid-container .node.store .nodeLabel,
+.docusaurus-mermaid-container .node.store text { color: var(--dg-store-text) !important; fill: var(--dg-store-text) !important; }
+
+.docusaurus-mermaid-container .node.human rect,
+.docusaurus-mermaid-container .node.human polygon,
+.docusaurus-mermaid-container .node.human circle,
+.docusaurus-mermaid-container .node.human path { fill: var(--dg-human-bg) !important; stroke: var(--dg-human-line) !important; }
+.docusaurus-mermaid-container .node.human .nodeLabel,
+.docusaurus-mermaid-container .node.human text { color: var(--dg-human-text) !important; fill: var(--dg-human-text) !important; }
+
+.docusaurus-mermaid-container .node.external rect,
+.docusaurus-mermaid-container .node.external polygon,
+.docusaurus-mermaid-container .node.external circle,
+.docusaurus-mermaid-container .node.external path { fill: var(--dg-ext-bg) !important; stroke: var(--dg-ext-line) !important; stroke-dasharray: 5 3; }
+.docusaurus-mermaid-container .node.external .nodeLabel,
+.docusaurus-mermaid-container .node.external text { color: var(--dg-ext-text) !important; fill: var(--dg-ext-text) !important; }
+
+.docusaurus-mermaid-container .node.fail rect,
+.docusaurus-mermaid-container .node.fail polygon,
+.docusaurus-mermaid-container .node.fail circle,
+.docusaurus-mermaid-container .node.fail path { fill: var(--dg-fail-bg) !important; stroke: var(--dg-fail-line) !important; }
+.docusaurus-mermaid-container .node.fail .nodeLabel,
+.docusaurus-mermaid-container .node.fail text { color: var(--dg-fail-text) !important; fill: var(--dg-fail-text) !important; }
+
+/* Figure captions sit directly under a diagram */
+.fig-caption {
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0.8;
+  text-align: center;
+  margin: -0.5rem 0 1.75rem;
+}
+
+/* Inline legend swatches used on the Part 1 index */
+.dg-swatch {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 3px;
+  vertical-align: -0.1em;
+  margin-right: 0.35em;
+  border: 1.5px solid;
+}
+.dg-swatch--orch { background: var(--dg-orch-bg); border-color: var(--dg-orch-line); }
+.dg-swatch--agent { background: var(--dg-agent-bg); border-color: var(--dg-agent-line); }
+.dg-swatch--gate { background: var(--dg-gate-bg); border-color: var(--dg-gate-line); }
+.dg-swatch--store { background: var(--dg-store-bg); border-color: var(--dg-store-line); }
+.dg-swatch--human { background: var(--dg-human-bg); border-color: var(--dg-human-line); }
+.dg-swatch--external { background: var(--dg-ext-bg); border-color: var(--dg-ext-line); border-style: dashed; }
+.dg-swatch--fail { background: var(--dg-fail-bg); border-color: var(--dg-fail-line); }
