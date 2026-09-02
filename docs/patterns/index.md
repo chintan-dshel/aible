@@ -25,7 +25,7 @@ Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand 
 
 | # | Chapter | One line |
 |---|---|---|
-| 1 | Orchestration vs. autonomy | *In progress* |
+| 1 | [Orchestration vs. autonomy](./orchestration-vs-autonomy) | Can you write down, right now, the fixed sequence of calls this task requires? If yes, you don't need a loop. |
 | 2 | [Stage gates](./stage-gates) | Ask: if this gate fails on a real run tomorrow, what happens next, and who finds out? |
 | 3 | State machines | *In progress* |
 | 4 | LLM-as-judge | *In progress* |

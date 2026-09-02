@@ -176,11 +176,20 @@
   padding: 1px 5px;
   border-radius: 4px;
 }
+/* Do NOT force opacity here: Mermaid intentionally renders a near-zero-
+   opacity background rect for edges with no text label (self-loops,
+   unlabeled returns) so it's invisible. Forcing opacity:1 made every one
+   of those empty backgrounds visible as a faint ghost rectangle. Fill
+   colour only; Mermaid's own opacity value is left alone. */
 .markdown .docusaurus-mermaid-container .edgeLabel rect,
 .markdown .docusaurus-mermaid-container .labelBkg,
 .markdown .docusaurus-mermaid-container .label-container {
   fill: var(--dg-fig-bg) !important;
-  opacity: 1 !important;
+}
+/* But an empty label's <p>/<span> text wrapper has no size to leak
+   through, so it is safe to always suppress. */
+.markdown .docusaurus-mermaid-container .edgeLabel:empty {
+  background: transparent !important;
 }
 
 /* Arrows */
