@@ -24,5 +24,5 @@ Every claim comes from reading the source at a named commit, or, where a system 
 | System | What it is | Patterns it anchors |
 |---|---|---|
 | [ProjectOS](./projectos) | Stage-gated multi-agent project manager with a production LLM judge | Stage gates, state machines, LLM-as-judge, model routing |
-| [Lyceum](./lyceum) | AI university simulator with a multi-phase QA pipeline and multi-model routing | *In progress* |
+| [Lyceum](./lyceum) | AI university simulator with a nine-agent, spec-then-review-then-generate content pipeline | Stage gates, state machines, QA pipelines, model routing |
 | [Second Brain](./second-brain) | A personal knowledge wiki maintained by an LLM re-reading instructions, with no persisted state machine of its own | Memory layers, state machines |
