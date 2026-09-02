@@ -1,9 +1,11 @@
 # Aible v2 — Phase 0 Audit and Plan
 
 Title: *Agentic Systems: Patterns and Teardowns* (decided at Phase 0 review).
-Branch: `aible-v2`. Status: Phase 0 reviewed 2026-09-01; Phase 1 pilot in progress.
+Branch: `aible-v2`. Status: Phase 0 and Phase 1 reviewed 2026-09-02. Phase 2 in progress — 2 of 8 Part 1 chapters complete (2. Stage gates, 1. Orchestration vs. autonomy).
 
 Decisions taken at Phase 0 review: D1 sidebar-only reorganisation, v1 URLs unchanged. D2 repo paths as listed. D3 question list before Phase 3. D4 title above. D5 v1 diagrams untouched.
+
+Structure and presentation revised 2026-09-02 per user feedback and two review agents (pedagogy, editor) — see commits `4583c8f` and `5a7b39c`. Reading order is now: Start Here → Foundations → Building Blocks → Part 1 — Patterns → Part 2 — Teardowns → Reference: Infrastructure → Reference: Production → Reference: Frontier → Glossary, via an explicit `sidebars.ts`. Chapters 4/5 swapped (LLM-as-judge is ch.4, QA pipelines ch.5). Chapter shape reordered: failure modes now precede the teardowns section.
 
 ---
 
