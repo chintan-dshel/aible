@@ -92,7 +92,6 @@ const sidebars: SidebarsConfig = {
         'teardowns/projectos',
         'teardowns/lyceum',
         'teardowns/second-brain',
-        'teardowns/aible',
       ],
     },
 

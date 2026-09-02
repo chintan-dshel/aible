@@ -123,7 +123,7 @@ Every transition table has states you can enter and never leave except forward â
 
 - **[ProjectOS](../teardowns/projectos)** is this chapter's central example, in both directions. [Figure PO.2](../teardowns/projectos#control-flow) shows the stage machine labelled by who's allowed to move it â€” four different authorities, no shared table between them. The `TRANSITION_STAGES` drift is a live, currently-failing example of a stored contract disagreeing with the code that's supposed to honor it.
 - **[Lyceum](../teardowns/lyceum)** tracks a student's position through a four-phase pipeline; whether that position is a single governed state or several independent flags is one of the open questions for that teardown.
-- **[Second Brain](../teardowns/second-brain)** and **[Aible](../teardowns/aible)** both run phased processes (ingest, and multi-phase authoring) where "what phase is this in" is exactly the kind of fact this chapter is about.
+- **[Second Brain](../teardowns/second-brain)** runs a phased ingest process where "what phase is this in" is exactly the kind of fact this chapter is about.
 
 :::tip[My take]
 

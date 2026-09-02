@@ -98,7 +98,7 @@ An agent's own structured output is used to authorize an action a person should 
 ## Where it shows up in the teardowns
 
 - **[ProjectOS](../teardowns/projectos)** is where every failure mode in this chapter has a real instance, verified in [How it could be attacked or manipulated](../teardowns/projectos#how-it-could-be-attacked-or-manipulated): the regex filter covers a handful of specific fields and nothing written through the knowledge-entry route; the same route is the indirect-injection path chapter 7 already covered; a founder can request `milestone_retro` or `complete` directly through the transition endpoint from `intake`, skipping every stage in between; a founder can talk the retro agent into writing `advance_stage: complete` early, since that field is trusted the way chapter 3 warned against; and the regex list matches literal phrasings only, so paraphrase or translation passes clean.
-- **[Lyceum](../teardowns/lyceum)**, **[Second Brain](../teardowns/second-brain)**, and **[Aible](../teardowns/aible)** each have their own version of "where does untrusted content enter, and what can it reach" once those teardowns are read from source — a course-content pipeline, a personal knowledge wiki, and a multi-phase authoring pipeline all have different shapes of the same question.
+- **[Lyceum](../teardowns/lyceum)** and **[Second Brain](../teardowns/second-brain)** each have their own version of "where does untrusted content enter, and what can it reach" once those teardowns are read from source — a course-content pipeline and a personal knowledge wiki have different shapes of the same question.
 
 :::tip[My take]
 

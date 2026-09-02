@@ -131,7 +131,7 @@ A promotion or CI-gate threshold gets set to a round number — 3.5 is the usual
 ## Where it shows up in the teardowns
 
 - **[ProjectOS](../teardowns/projectos)** has the most fully built judge in this book's teardowns. Fifteen percent of production calls are scored by Sonnet against a four-dimension-plus-overall rubric — see [Figure PO.4](../teardowns/projectos#the-judge-and-the-golden-set) — and a self-scoring guard stops the judge from ever grading its own output. High scores feed a golden-candidate table; a person promotes candidates to a golden set from the CLI, and a `golden:run` command re-scores every active case and exits non-zero if any falls below its own threshold. It's also this chapter's clearest cautionary tale: the judge shares a model with most of the agents it scores, and it reads a truncated slice of a long output, both real and both unaddressed as of the commit this book reads from.
-- **[Lyceum](../teardowns/lyceum)** and **[Aible](../teardowns/aible)** both run multi-reviewer QA passes that chapter 5 covers directly; whether either uses a scored judge in the sense this chapter means, versus a reviewer agent producing free-text feedback, is one of the open questions for those teardowns.
+- **[Lyceum](../teardowns/lyceum)** runs a multi-reviewer QA pass that chapter 5 covers directly; whether it uses a scored judge in the sense this chapter means, versus a reviewer agent producing free-text feedback, is one of the open questions for that teardown.
 
 :::tip[My take]
 

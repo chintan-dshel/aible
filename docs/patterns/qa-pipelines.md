@@ -96,7 +96,7 @@ Two reviewers with different names but the same underlying instinct — "check f
 
 ## Where it shows up in the teardowns
 
-- **[Aible](../teardowns/aible)** — this site's reference library — was built through exactly this pattern: three parallel reviewers (technical accuracy, pedagogical, security), each reading the same draft with no visibility into the others' output, reconciled by a human gate across six phases. The chapter you're reading went through a smaller version of the same thing today — two reviewers, not three, with different lenses (structure and narrative; presentation and rendering), and the same gate.
+- **This site's reference library** was built through exactly this pattern, though it isn't one of the teardowns below: three parallel reviewers (technical accuracy, pedagogical, security), each reading the same draft with no visibility into the others' output, reconciled by a human gate across six phases. The chapter you're reading went through a smaller version of the same thing today — two reviewers, not three, with different lenses (structure and narrative; presentation and rendering), and the same gate.
 - **[Lyceum](../teardowns/lyceum)** runs a nine-agent, four-phase QA pipeline over generated course content — the largest reviewer pipeline in this book's teardowns, and one of the open questions once that teardown is written is whether its phases are genuinely non-overlapping lenses or a longer version of the same check repeated.
 - **[ProjectOS](../teardowns/projectos)** doesn't run a multi-reviewer pipeline in this sense — its quality control is the single sampled judge from chapter 4, which is a different pattern solving a related problem at a different cadence.
 

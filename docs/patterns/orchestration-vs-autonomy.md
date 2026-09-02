@@ -131,7 +131,7 @@ A loop gets approved because "it'll probably take two or three steps." Nothing e
 
 - **[ProjectOS](../teardowns/projectos)** sits at the orchestrated-workflow end on purpose. `STAGE_AGENT` in `src/lib/agents.js` is a seven-entry lookup table with no loop anywhere in the routing path — see [Figure PO.1](../teardowns/projectos#architecture) and [Figure PO.2](../teardowns/projectos#control-flow). Nothing in the system decides to call itself; the closest thing to autonomy is the retro agent choosing a value for `advance_stage`, and even that write is a single field on a single call, not an iteration.
 - **[Lyceum](../teardowns/lyceum)** runs a bounded multi-phase pipeline rather than an open loop.
-- **[Second Brain](../teardowns/second-brain)** and **[Aible](../teardowns/aible)** are both closer to fixed workflows than to autonomous loops — a retrieval-then-synthesis pipeline and a phased authoring pipeline, respectively.
+- **[Second Brain](../teardowns/second-brain)** is closer to a fixed workflow than an autonomous loop — a retrieval-then-synthesis pipeline with a known shape.
 
 :::tip[My take]
 

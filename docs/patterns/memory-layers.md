@@ -116,7 +116,7 @@ The easiest way to end up with an unscoped store is never deciding to build one 
 
 - **[ProjectOS](../teardowns/projectos)** is this chapter's central and cautionary example. The knowledge hub — a real, working feature that makes completed projects improve future plans — has no per-user scope in `searchKnowledge()`, and the same gap doubles as an indirect prompt-injection path, since entries reach the planning agent's system prompt without passing the injection check applied to live messages.
 - **[Second Brain](../teardowns/second-brain)** is a persistent memory layer by design — a personal knowledge wiki maintained by an LLM — and its single-user scope is the natural anchor for what "correctly scoped" looks like once that teardown is written.
-- **[Lyceum](../teardowns/lyceum)** and **[Aible](../teardowns/aible)** both accumulate state across a multi-phase process; whether either treats that accumulated state as scoped memory or as an implicit shared blackboard is one of the open questions for those teardowns.
+- **[Lyceum](../teardowns/lyceum)** accumulates state across a multi-phase process; whether it treats that accumulated state as scoped memory or as an implicit shared blackboard is one of the open questions for that teardown.
 
 :::tip[My take]
 

@@ -187,7 +187,7 @@ The human gate fires so often, or shows so much, that the person stops reading i
 - **[ProjectOS](../teardowns/projectos)** is this chapter's whole argument in one codebase. The live gate — plan approval — is a human gate done right: a transactional flip with a concurrency guard and a decision log, see [The gates](../teardowns/projectos#the-gates). The other two are the failure mode above, [The gate that isn't there](#the-gate-that-isnt-there), sitting in the same file under the same dispatcher. The milestone-completion check that should be a third gate lives entirely in a UI button — [Client-side gate](#client-side-gate).
 - **[Lyceum](../teardowns/lyceum)** runs generated course content through a four-phase QA pipeline where each phase gates the next before it reaches a student.
 - **[Second Brain](../teardowns/second-brain)** gates at ingest: existing articles are shown as a diff before they're updated, and nothing lands in the wiki without a person looking at that diff.
-- **[Aible](../teardowns/aible)** — this site — is written through a human gate too. Three reviewer agents run in parallel over each chapter, and I decide what to apply. They over-flag, badly, and if I applied even half of what came back these pages would be twice as long and worse. The gate is me, sitting there rejecting things.
+- **This site** is written through a human gate too, though it isn't one of the teardowns — three reviewer agents run in parallel over each chapter, and I decide what to apply. They over-flag, badly, and if I applied even half of what came back these pages would be twice as long and worse. The gate is me, sitting there rejecting things.
 
 :::tip[My take]
 
