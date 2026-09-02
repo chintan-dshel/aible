@@ -28,7 +28,7 @@ Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand 
 | 1 | [Orchestration vs. autonomy](./orchestration-vs-autonomy) | Can you write down, right now, the fixed sequence of calls this task requires? If yes, you don't need a loop. |
 | 2 | [Stage gates](./stage-gates) | Ask: if this gate fails on a real run tomorrow, what happens next, and who finds out? |
 | 3 | [State machines](./state-machines) | Grep the codebase for every place this state gets written — do they all call the same function? |
-| 4 | [LLM-as-judge](./llm-as-judge) | *In progress* |
+| 4 | [LLM-as-judge](./llm-as-judge) | If I ran this judge against twenty examples I've already scored myself, would it agree with me eight times out of ten? |
 | 5 | [QA pipelines](./qa-pipelines) | *In progress* |
 | 6 | [Cost-aware model routing](./cost-aware-model-routing) | *In progress* |
 | 7 | [Memory layers](./memory-layers) | *In progress* |
