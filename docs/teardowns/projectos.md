@@ -10,7 +10,7 @@ description: A stage-gated, four-agent project manager for solo founders, with a
 ProjectOS is an AI project manager for solo founders. A founder describes an idea in chat; four Claude agents take it through a brief, a plan, daily execution check-ins, and retrospectives. It runs on Node.js, Express, PostgreSQL, and React, and is deployed on Railway.
 
 :::note[What was read]
-Backend source at commit `827bda2` (2026-05-20): all 51 files under `src/`, the 23 migrations (`000` through `022`), the `eval/` harness, and the API tests. Re-verified 2026-09-02 against `github.com/chintan-dshel/project-os` directly — `src/` is byte-for-byte identical to the local copy this chapter was originally read from. Frontend: the dashboard view and the project hook, for stage-transition logic only. Repo docs: `README.md`, `PATTERNS.md`, `docs/DECISIONS.md`. I ran one test myself, the `TRANSITION_STAGES` one, to confirm a finding I didn't believe until I saw it fail. Nothing below is inferred from the repo's own descriptions where the code says otherwise.
+Backend source at commit `827bda2` (2026-05-20): all 51 files under `src/`, the 23 migrations — numbered scripts that each make one incremental change to the database's structure — (`000` through `022`), the `eval/` harness, and the API tests. Re-verified 2026-09-02 against `github.com/chintan-dshel/project-os` directly — `src/` is byte-for-byte identical to the local copy this chapter was originally read from. Frontend: the dashboard view and the project hook, for stage-transition logic only. Repo docs: `README.md`, `PATTERNS.md`, `docs/DECISIONS.md`. I ran one test myself, the `TRANSITION_STAGES` one — a fixed list in the code of which stage names are valid to transition into — to confirm a finding I didn't believe until I saw it fail. Nothing below is inferred from the repo's own descriptions where the code says otherwise.
 :::
 
 ## What it does
@@ -26,7 +26,7 @@ A project moves through six stages. Each stage has exactly one agent, chosen by 
 | `milestone_retro`, `ship_retro` | Retro | A retrospective, written to a knowledge hub that future plans read |
 | `complete` | Retro | Archived |
 
-Around that core: specialist agents (coding, research, content, QA) that can be delegated a task; a fire-and-forget analysis that suggests which specialist should take each open task; a per-project "workroom" chat; and generated milestone and close-out reports.
+Around that core: specialist agents (coding, research, content, QA) that can be delegated a task; a fire-and-forget analysis — started in the background, without the app waiting for it to finish before moving on — that suggests which specialist should take each open task; a per-project "workroom" chat; and generated milestone and close-out reports.
 
 ## Architecture
 
@@ -53,15 +53,15 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure PO.1</strong> — One path to the model. Every message passes a fixed middleware chain, one gate, and one orchestrator before reaching the agent for the current stage.</p>
 
-Figure PO.1 has one property worth naming first: there is exactly one path to the model. Every agent, the judge, the specialist agents, and the report generator call `callClaude()` in `src/lib/anthropic.js`. That function writes a trace row with tokens, latency, model, and USD cost, and with a 15% probability spawns a judge call on the response. Because there is one gateway, there is one place where telemetry, cost, and quality sampling are guaranteed to happen.
+Figure PO.1 has one property worth naming first: there is exactly one path to the model. Every agent, the judge — a second Claude call that grades the first agent's response, covered in full below — the specialist agents, and the report generator call `callClaude()` in `src/lib/anthropic.js`. That function writes a trace row with tokens, latency, model, and USD cost, and with a 15% probability spawns a judge call on the response. Because there is one gateway, there is one place where telemetry — usage data like tokens and latency, recorded automatically — cost, and quality sampling are guaranteed to happen.
 
 The other components, with their files:
 
-- **Middleware chain** (`src/app.js`, `src/middleware/`). JWT auth on everything below `/auth`. On the message route: a per-user rate limit (20 per hour, 200 per day, in-process map), a per-user monthly spend cap ($2 by default, read from `agent_traces`), a regex block-list for injection phrases that returns 403, and a PII detector that logs but does not block.
+- **Middleware chain** (`src/app.js`, `src/middleware/`). JWT (a signed token proving who's logged in) auth on everything below `/auth`. On the message route: a per-user rate limit (20 per hour, 200 per day, tracked in an in-process map — stored in the running server's own memory, not the database, so it resets on restart and isn't shared across multiple copies of the server), a per-user monthly spend cap ($2 by default, read from `agent_traces`), a regex (a text-pattern matcher) block-list for injection phrases that returns 403 (an HTTP code meaning "request denied"), and a PII detector that logs but does not block.
 - **Stage gate** (`src/middleware/gates.js`). Runs before the agent. Discussed below, because it is not what its header says.
-- **Orchestrator** (`src/lib/orchestrator.js`). Resolves an A/B variant if an experiment is active for this agent, else asks a rule-based router which model to use, then runs the agent through a fallback chain on 429, 502, or 503.
-- **Stage agents** (`src/lib/*.agent.js`). Each builds a system prompt from the project row, sends the last 40 turns, extracts a JSON block from the reply, validates it, and writes rows itself inside a transaction.
-- **Knowledge hub** (`src/lib/knowledge.js`). A PostgreSQL full-text index over entries written by retros, by decision logging, and by users. The planning agent injects the top five matches into its system prompt; the execution agent injects the top four on the first turn of a session.
+- **Orchestrator** (`src/lib/orchestrator.js`). Resolves an A/B variant if an experiment is active for this agent, else asks a rule-based router which model to use, then runs the agent through a fallback chain on 429 (too many requests), 502, or 503 (the provider's servers temporarily struggling).
+- **Stage agents** (`src/lib/*.agent.js`). Each builds a system prompt — the block of instructions given to the model that sets its role and rules, separate from what the user types — from the project row, sends the last 40 turns, extracts a JSON block from the reply, validates it, and writes rows itself inside a transaction — a group of database writes that either all succeed together or none do, so data is never left half-updated.
+- **Knowledge hub** (`src/lib/knowledge.js`). A PostgreSQL full-text index — a search index built for matching words in text, like a search engine, rather than a plain database lookup — over entries written by retros, by decision logging, and by users. The planning agent injects the top five matches into its system prompt; the execution agent injects the top four on the first turn of a session.
 - **Judge and golden set** (`src/lib/judge.js`, `eval/`). Covered in the data-flow section.
 
 ## Control flow
@@ -88,11 +88,11 @@ stateDiagram-v2
 
 <p className="fig-caption"><strong>Figure PO.2</strong> — The stage machine, labeled by who decides each transition. Four different authorities move the project: code, a person, a model, and a UI button.</p>
 
-Figure PO.2 is the most important diagram in this chapter. The stage column is the system's state machine, and it is well designed: one column, an enum type, a single lookup from stage to agent. But four different authorities are allowed to change it.
+Figure PO.2 is the most important diagram in this chapter. The stage column is the system's state machine — the project is always in exactly one of six named states, and moving between them is supposed to happen only through defined transitions — and it is well designed: one column, an enum type (a column restricted to one of a fixed, named list of values), a single lookup from stage to agent. But four different authorities are allowed to change it.
 
 - **Code** moves the project from `intake` to `planning`, and from `planning` to `awaiting_approval`. The agent module validates the model's JSON and then writes the new stage in the same transaction as the brief or plan. This is the right shape.
 - **A person** moves the project from `awaiting_approval` to `execution` through `PUT /projects/:id/approve`. The handler requires `confirmed` to be exactly `true`, updates the stage with a `WHERE stage = 'awaiting_approval'` guard so a concurrent approval fails cleanly, and writes a decision-log row in the same transaction. If `confirmed` is absent it returns a plan summary instead. This is a textbook human gate.
-- **The model** moves the project from `milestone_retro` to `execution`, and from `ship_retro` to `complete`. The retro agent's JSON template includes an `advance_stage` field, the model fills it in, and `writeRetroToDB()` writes whatever value came back straight into `projects.stage`. The enum cast rejects non-stage strings; it does not reject a valid stage that is wrong for this moment.
+- **The model** moves the project from `milestone_retro` to `execution`, and from `ship_retro` to `complete`. The retro agent's JSON template includes an `advance_stage` field, the model fills it in, and `writeRetroToDB()` writes whatever value came back straight into `projects.stage`. The enum cast rejects strings that aren't valid stage names; it does not reject a valid stage name that's simply wrong for this moment.
 - **A UI button** moves the project from `execution` to `milestone_retro`, and from `execution` to `ship_retro`. The dashboard shows the button only when every task in the milestone is done. The endpoint it calls, `POST /projects/:id/transition`, checks that the target is one of four allowed strings and that the caller owns the project. It does not check the current stage or whether any task is done. The comment in the retro gate says this check "is enforced by the transition endpoint." It is not.
 
 ### The gates
@@ -102,10 +102,10 @@ Figure PO.2 is the most important diagram in this chapter. The stage column is t
 | Gate | Header says | Code does |
 |---|---|---|
 | `gatePlanning` | Blocks planning if the brief's confidence score is below 70 | Returns without checking. A comment explains the score reflects assumption density, not brief quality, so the gate was removed |
-| `gateExecution` | Blocks execution until the plan is approved | Throws a 422 with a stable code and a redirect stage if `plan_approved` is false. **Live** |
+| `gateExecution` | Blocks execution until the plan is approved | Throws a 422 (an HTTP code meaning "the request was invalid") with a stable code and a redirect stage if `plan_approved` is false. **Live** |
 | `gateRetro` | Blocks a new milestone until the previous one has a retro | Returns without checking. A comment defers the check to the transition endpoint, which does not perform it |
 
-One of three gates is real. The one that is real is good: it returns a machine-readable error code, the stage the client should fall back to, and a 422 rather than a 400, so the frontend can switch on it. The other two are the failure mode [chapter 2 calls "the gate that isn't there"](../patterns/stage-gates#the-gate-that-isnt-there).
+One of three gates is real. The one that is real is good: it returns a machine-readable error code, the stage the client should fall back to, and a 422 rather than a plain "bad request" 400, so the frontend can switch on it. The other two are the failure mode [chapter 2 calls "the gate that isn't there"](../patterns/stage-gates#the-gate-that-isnt-there).
 
 ## Data flow
 
@@ -169,19 +169,19 @@ flowchart TB
   X -- "any fail" --> NO["exit 1<br/>deploy blocked"]:::fail
 ```
 
-<p className="fig-caption"><strong>Figure PO.4</strong> — The golden-set loop. Production traffic feeds the golden dataset: high-scoring live responses become candidates, a person promotes them, and the golden run gates CI on them.</p>
+<p className="fig-caption"><strong>Figure PO.4</strong> — The golden-set loop. Production traffic feeds the golden dataset: high-scoring live responses become candidates, a person promotes them, and the golden run gates CI (continuous integration — an automated pipeline that runs checks before code can ship) on them.</p>
 
-Figure PO.4 is the system's most distinctive design. There are three eval layers:
+Figure PO.4 is the system's most distinctive design. The idea underneath it: instead of writing every test case by hand, let real production traffic nominate its own best examples, and use a second AI call to pre-screen which ones are good enough to be worth a person's time. There are three eval layers:
 
-1. **Structural assertions** (`eval/run.js`). Fixtures end with a confirmation message so the agent always emits JSON. Assertions check shape and business rules: tasks between one and three hours, at least three success criteria, a scope-creep fixture must produce a change request. No judge cost.
-2. **Production judge** (`src/lib/judge.js`). Fifteen percent of live calls are scored by a second Claude call against a per-agent rubric of four named dimensions plus an overall score. The rubric asks about specific failure modes ("did the agent probe 'done' claims or accept them?") rather than general quality. Scores, breakdown, cost, and rubric version are stored per trace. The judge is excluded from being judged by a guard on its own agent name.
-3. **Golden gate** (`eval/golden/run.js`). Responses scoring 4.5 or higher become candidates. A person promotes or rejects them from the CLI. `golden:run` re-runs every active case, scores it, and exits non-zero if any case falls below its own minimum score.
+1. **Structural assertions** (`eval/run.js`). Fixtures — pre-written sample inputs used to run a test — end with a confirmation message so the agent always emits JSON. Assertions check shape and business rules: tasks between one and three hours, at least three success criteria, a scope-creep fixture must produce a change request. No judge cost.
+2. **Production judge** (`src/lib/judge.js`). Fifteen percent of live calls are scored by a second Claude call — the judge — against a per-agent rubric of four named dimensions plus an overall score. The rubric asks about specific failure modes ("did the agent probe 'done' claims or accept them?") rather than general quality. Scores, breakdown, cost, and rubric version are stored per trace. The judge is excluded from being judged by a guard on its own agent name.
+3. **Golden gate** (`eval/golden/run.js`). Responses scoring 4.5 or higher become candidates. A person promotes or rejects them from the CLI (command-line interface — a text-based way of running commands, rather than clicking in an app). `golden:run` re-runs every active case, scores it, and exits non-zero if any case falls below its own minimum score.
 
 ## Design decisions and trade-offs
 
 ### Route by stage, not by intent
 
-`STAGE_AGENT` in `src/lib/agents.js` is a seven-entry object. There is no classifier and no way to route to the wrong agent. The cost is that a question about the plan during execution is answered by the execution agent, whose prompt is about check-ins. The repo's own wiki notes this open question.
+`STAGE_AGENT` in `src/lib/agents.js` is a seven-entry object. There is no classifier — a trained model that automatically decides which category something belongs in — and no way to route to the wrong agent. The cost is that a question about the plan during execution is answered by the execution agent, whose prompt is about check-ins. The repo's own wiki notes this open question.
 
 ### Agents write their own rows
 
@@ -201,15 +201,15 @@ Injection detection is seven regular expressions and a 403. PII detection is aud
 
 ### Cost controls in layers
 
-Rate limit per user, monthly cap per user, model routing by rule (retro to Haiku, contexts over roughly 8,000 tokens to Opus, execution with fifteen or more tasks to Sonnet, default Sonnet), and a fallback chain that steps up a tier on transient errors. Each routing decision is logged with the rule that fired.
+Rate limit per user, monthly cap per user, model routing by rule (retro to Haiku — the cheapest, fastest of Claude's three tiers — contexts over roughly 8,000 tokens, about 6,000 words or ten pages of text, to Opus — the most capable and most expensive tier — execution with fifteen or more tasks to Sonnet, the middle tier and the default), and a fallback chain that steps up a tier on transient errors. Each routing decision is logged with the rule that fired.
 
 ### Full-text search, not embeddings
 
-(`docs/DECISIONS.md`, D-007.) The knowledge hub uses `tsvector` and a GIN index. The corpus is small and the retrieval is keyword-shaped, so no vector infrastructure. The known limitation is stemming mismatches.
+(`docs/DECISIONS.md`, D-007.) The road not taken here is embeddings — numeric representations of text meaning that let you search by similarity rather than exact words — which need dedicated vector infrastructure to store and query. The knowledge hub instead uses `tsvector`, a specialized search data type, and a matching index, both built into PostgreSQL for keyword search. The corpus is small and the retrieval is keyword-shaped, so no vector infrastructure. The known limitation is stemming mismatches — the search treats different grammatical forms of the same word, like "run" and "running," as different words.
 
 ### Mock at the network boundary
 
-Tests replace `fetch`, not `callClaude`. The wrapper, the trace write, and the judge sampling all execute for real in tests, so a test can assert on `agent_traces` rows.
+Tests replace `fetch`, not `callClaude` — meaning the fake stand-in used during tests sits at the outermost network call, not the app's own wrapper around it. The wrapper, the trace write, and the judge sampling all execute for real in tests, so a test can assert on `agent_traces` rows.
 
 ## Strengths
 
@@ -225,14 +225,14 @@ Tests replace `fetch`, not `callClaude`. The wrapper, the trace write, and the j
 
 I checked every one of these against the source at the commit named above. Where I couldn't confirm something, it isn't on this list.
 
-1. **Two of three gates are no-ops.** `gatePlanning` and `gateRetro` return without checking anything. The file header and the dispatcher still describe them as active checks.
+1. **Two of three gates are no-ops** — functions that run but do nothing. `gatePlanning` and `gateRetro` return without checking anything. The file header and the dispatcher still describe them as active checks.
 2. **Milestone completion is enforced only in the browser.** `POST /projects/:id/transition` accepts any of `execution`, `milestone_retro`, `ship_retro`, or `complete` from any current stage, as long as the caller owns the project. The all-tasks-done condition lives in `DashboardView.jsx`.
-3. **A constant drifted past its test.** `TRANSITION_STAGES` gained `complete` when the close-project button was added. The test that pins the constant still expects three values. Running that single test fails. This is documented drift that CI would catch if it ran.
+3. **A constant drifted past its test.** `TRANSITION_STAGES`, a named, fixed value in the code, gained `complete` when the close-project button was added. The test that pins the constant — hard-codes the expected value and fails when it changes — still expects three values. Running that single test fails. This is documented drift that CI would catch if it ran.
 4. **The model decides two stage transitions.** The retro agent's `advance_stage` value is written to `projects.stage` as returned. The template tells the model what to put there, but nothing checks the value against the current stage.
-5. **A/B variants apply only the model.** `resolveVariant()` returns a system prompt and temperature per variant. The orchestrator uses only the model. An experiment that varies the prompt runs two identical arms.
+5. **A/B variants apply only the model.** `resolveVariant()` returns a system prompt and temperature — a setting controlling how random versus predictable the model's output is — per variant. The orchestrator uses only the model. An experiment that's supposed to vary the prompt and the temperature ends up varying neither; both arms run identical.
 6. **Routing decisions cannot be joined to cost.** `logRoutingDecision()` is always called with a null trace id, so the `routing_decisions` table cannot be linked to `agent_traces`.
 7. **Agent budgets are stored, not enforced.** Migration 016 adds per-project, per-agent daily and monthly limits and a kill switch. There are CRUD routes for both. Nothing on any call path reads them.
-8. **The judge shares a model with the default agent.** Sonnet judges Sonnet. The repo's own wiki names self-preference as a risk. The judge also sees only the last user message, truncated to 600 characters, and the first 1,200 characters of the output, so a long plan is scored on its opening.
+8. **The judge shares a model with the default agent.** Sonnet judges Sonnet. The repo's own wiki names self-preference — an AI judge's tendency to rate outputs from its own model family more favorably — as a risk. The judge also sees only the last user message, truncated to 600 characters, and the first 1,200 characters of the output, so a long plan is scored on its opening.
 9. **Every non-429 API error is treated as retryable.** `callClaude()` maps all non-429 failures to status 502, and the orchestrator retries 502 on the next model in the chain. A malformed request that fails on Sonnet is retried on Opus and fails again.
 10. **The spend cap fails open, and the rate limiter is per process.** A database error during the cap check allows the request. The rate limiter is an in-memory map, so a multi-process deployment gives each process its own limit. `PATTERNS.md` already lists the second of these.
 11. **The knowledge hub is not scoped by user.** `searchKnowledge()` filters by type, project, and tags, never by user. Entries written by any user, or by any user's retro, can be retrieved into any other user's planning prompt.
