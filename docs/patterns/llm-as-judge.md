@@ -54,7 +54,7 @@ flowchart TB
 
 Three design choices carry most of the weight. First, the judge scores named dimensions, not a single vague "quality" number — "did the agent probe the 'done' claim" is a question you can calibrate against; "is this good" is not. Second, the judge is sampled, not run on every call, because it costs a real call itself; running it on 15% of production traffic catches drift within a reasonable window without doubling your bill. Third, the score and the model's reasoning are both stored, so a score drop is something you can investigate, not just a number that changed.
 
-Here's a rubric scorer with those three choices made explicit, plus the calibration step most implementations skip — checking the judge against human judgment before trusting it in production:
+Here's a rubric scorer with those three choices made explicit, plus the calibration step most implementations skip — checking the judge against human judgment before trusting it in production. It asks the judge model to answer in JSON, the structured, machine-readable text format that lets code read a score back out reliably instead of having to parse free-form prose:
 
 ```python
 def build_rubric_prompt(input_data, output):
@@ -98,13 +98,13 @@ The rubric asks about specific failure modes, not general quality — that's the
 
 ### Do not use LLM-as-judge when
 
-- A rule gate would catch the same defect for free. Don't spend a model call checking something a regex or a schema validator already covers.
+- A rule gate would catch the same defect for free. Don't spend a model call checking something a regex (a pattern-matching rule for text) or a schema validator already covers.
 - You haven't calibrated it. An uncalibrated judge is a number that feels like a signal and might not be one — worse than no check, because it creates false confidence.
 - You need a hard gate on every single call and can't tolerate sampling. A judge that only scores 15% of traffic can't be the only thing standing between bad output and a user on the 85% it doesn't see.
 
 ### The test
 
-Ask: **if I ran this judge against twenty examples I've already scored myself, would it agree with me at least eight times out of ten?** If you don't know the answer, you haven't calibrated it yet, and everything downstream of the score — a golden-set promotion, a CI gate, a dashboard someone checks before shipping — is trusting a number nobody's actually checked.
+Ask: **if I ran this judge against twenty examples I've already scored myself, would it agree with me at least eight times out of ten?** If you don't know the answer, you haven't calibrated it yet, and everything downstream of the score — a golden-set promotion, a CI gate (an automated check that blocks a release if it fails), a dashboard someone checks before shipping — is trusting a number nobody's actually checked.
 
 ## Failure modes
 

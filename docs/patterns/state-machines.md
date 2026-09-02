@@ -33,7 +33,7 @@ flowchart TB
 
 This is a milder version of a problem you already know from chapter 2: an ungated pipeline lets a defect through because nothing checks it. Here the defect isn't in the output, it's in the run's own idea of what stage it's in. A stage stored in a column and a stage inferred from the last few messages of a conversation are not the same kind of fact. The column is either right or wrong and you can query it. The inference is a guess that happens to usually be right, until a message gets summarized out of context, a retry replays an old turn, or two requests for the same run land close enough together that each one infers a different answer. None of that shows up as an error. It shows up as two parts of the system quietly acting on different beliefs about the same run.
 
-ProjectOS avoids the worse version of this — it stores `stage` as an actual enum column on the `projects` table, not something inferred from chat history. That's the correct instinct, and most of this chapter is really about what you still have to get right once you've had it. The problem ProjectOS has instead is narrower and, I'd argue, more common: the column is real, but four different things are allowed to write to it, and nothing checks that a given write is a legal move from the stage the project was actually in.
+ProjectOS avoids the worse version of this — it stores `stage` as an actual enum column (a database field whose value must be one of a fixed, named list — never arbitrary text) on the `projects` table, not something inferred from chat history. That's the correct instinct, and most of this chapter is really about what you still have to get right once you've had it. The problem ProjectOS has instead is narrower and, I'd argue, more common: the column is real, but four different things are allowed to write to it, and nothing checks that a given write is a legal move from the stage the project was actually in.
 
 ## The pattern
 
@@ -81,7 +81,7 @@ def transition(run, to_state: str, actor: str):
     run.save()
 ```
 
-Three things make this a state machine instead of just a column with a name on it. First, `TRANSITIONS` is the one place the legal moves are written down — not scattered across every caller's judgment about what seems reasonable. Second, `transition()` is the only path that writes `run.state`; nothing else touches the column directly, the way `gates.js` and the route handler and the retro agent's JSON output all independently write to ProjectOS's `stage`. Third, every write is logged with who asked for it, which is what makes a run's history something you can actually read back later instead of something you have to reconstruct from a conversation transcript.
+Three things make this a state machine instead of just a column with a name on it. First, `TRANSITIONS` is the one place the legal moves are written down — not scattered across every caller's judgment about what seems reasonable. Second, `transition()` is the only path that writes `run.state`; nothing else touches the column directly, the way `gates.js` and the route handler and the retro agent's JSON output — JSON being the structured, machine-readable text format the model's answer comes back in — all independently write to ProjectOS's `stage`. Third, every write is logged with who asked for it, which is what makes a run's history something you can actually read back later instead of something you have to reconstruct from a conversation transcript.
 
 ## Decision rules
 
@@ -93,23 +93,23 @@ Three things make this a state machine instead of just a column with a name on i
 
 ### A stored value is not yet a state machine when
 
-- Anything other than one transition function writes to it. A column with four writers is a shared mutable variable with an enum type, not a state machine — the type just tells you the value is always spelled correctly, not that it got there legally.
+- Anything other than one transition function writes to it. A column with four writers is a shared mutable variable — a value any part of the code is free to overwrite — with an enum type, not a state machine; the type just tells you the value is always spelled correctly, not that it got there legally.
 - There's no table of legal transitions, only implicit agreement that everyone will behave. ProjectOS's `stage` enum has this exact shape: a valid value, written by code, by a person, or by a model's own JSON, with no shared check that the move being made was allowed from where the project actually was.
 - The set of valid values and the code that checks them can drift independently. That's not hypothetical here — see the failure mode below.
 
 ### The test
 
-Ask: **if I grep the codebase for every place this state gets written, do they all call the same function?** If the answer is a list of call sites instead of one name, you have a value, not a state machine, no matter how good the enum looks in the schema.
+Ask: **if I search the code (`grep`, in developer shorthand) for every place this state gets written, do they all call the same function?** If the answer is a list of call sites instead of one name, you have a value, not a state machine, no matter how good the enum looks in the schema.
 
 ## Failure modes
 
 ### Multiple writers, no shared table
 
-Four different things write to ProjectOS's `stage` column: the intake and planning agents write it inside their own transactions when their JSON validates; a founder writes it through `PUT /projects/:id/approve`; the retro agent writes whatever value it decided belonged in its own JSON's `advance_stage` field; and a UI button writes it through `POST /projects/:id/transition`. Each of the four is individually reasonable. None of them consults the other three, and there's no single table anywhere that says which of the six stage values a project in `execution` is allowed to move to next. The column is well-typed and badly governed. Fix: one `transition()` function, one table, every writer goes through it — which is the ProjectOS teardown's own first item under "What I'd change."
+Four different things write to ProjectOS's `stage` column: the intake and planning agents write it inside their own transactions — a database transaction being a group of writes that either all succeed together or none do — when their JSON validates; a founder writes it by submitting an approval form, which sends a web request to `.../approve`; the retro agent writes whatever value it decided belonged in its own JSON's `advance_stage` field; and a UI button writes it by sending a similar request to `.../transition`. Each of the four is individually reasonable. None of them consults the other three, and there's no single table anywhere that says which of the six stage values a project in `execution` is allowed to move to next. The column is well-typed and badly governed. Fix: one `transition()` function, one table, every writer goes through it — which is the ProjectOS teardown's own first item under "What I'd change."
 
 ### The stored enum and the code that checks it drift apart
 
-`TRANSITION_STAGES` in ProjectOS is a four-value list of the stages a founder can request through the transition endpoint. The test that pins it, `test/api/transitions.test.js`, still expects three. I ran that test myself rather than trust the source reading, and it fails: the constant gained a fourth value — `complete`, for the close-project button — sometime after the test was written, and nobody updated the test, or the test has been failing quietly and nobody's been watching it fail. Either way, the state machine's own contract test is currently red. Fix: this is what a failing test is for. Treat a red state-machine test as a stop-the-line signal, not a known issue to work around.
+`TRANSITION_STAGES` in ProjectOS is a four-value list of the stages a founder can request through the transition endpoint — the specific address the app listens on for that kind of request. The test that pins it, `test/api/transitions.test.js`, still expects three. I ran that test myself rather than trust the source reading, and it fails: the constant gained a fourth value — `complete`, for the close-project button — sometime after the test was written, and nobody updated the test, or the test has been failing quietly and nobody's been watching it fail. Either way, the state machine's own contract test is currently red. Fix: this is what a failing test is for. Treat a red state-machine test as a stop-the-line signal, not a known issue to work around.
 
 ### State inferred instead of stored
 
