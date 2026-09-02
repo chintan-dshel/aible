@@ -6,7 +6,7 @@ description: Real agentic systems, read from source and taken apart the same way
 
 # Teardowns: Systems I Built
 
-Systems I built, each read from its actual source code and taken apart in the same order:
+ProjectOS and Lyceum are the two systems with enough real application code to take apart the same way each time:
 
 1. **What it does** — the product, in plain terms
 2. **Architecture** — components and boundaries
@@ -17,10 +17,12 @@ Systems I built, each read from its actual source code and taken apart in the sa
 7. **How it could be attacked or manipulated**
 8. **What I'd change**
 
-Every claim comes from reading the source at a named commit. Anything inferred rather than read is tagged `[VERIFY]`.
+Second Brain gets a shorter case study instead of the full eight sections — most of what runs it is instructions a Claude session re-reads each time, not code, so there's less architecture to take apart and more to say about what that shape itself implies.
+
+Every claim comes from reading the source at a named commit, or, where a system isn't version-controlled, from the source on disk on a named date. Anything inferred rather than read is tagged `[VERIFY]`.
 
 | System | What it is | Patterns it anchors |
 |---|---|---|
 | [ProjectOS](./projectos) | Stage-gated multi-agent project manager with a production LLM judge | Stage gates, state machines, LLM-as-judge, model routing |
 | [Lyceum](./lyceum) | AI university simulator with a multi-phase QA pipeline and multi-model routing | *In progress* |
-| [Second Brain](./second-brain) | Persistent memory layer plus a RAG demo | *In progress* |
+| [Second Brain](./second-brain) | A personal knowledge wiki maintained by an LLM re-reading instructions, with no persisted state machine of its own | Memory layers, state machines |
