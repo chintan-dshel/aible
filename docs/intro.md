@@ -7,6 +7,8 @@ description: What this book is, who it assumes, the two kinds of page in it, and
 
 # Agentic Systems: Patterns and Teardowns
 
+**"Agentic"** describes an AI system that doesn't just answer once and stop — it takes a sequence of actions, calling tools, checking results, and deciding what to do next, toward a goal, sometimes across several separate model calls handing work to each other. That's the whole subject of this site.
+
 This site is two things stacked on top of each other: a short book — the one named above — and a reference library it's built on top of. The book is **Agentic Architecture Patterns** and **Teardowns: Systems I Built** in the sidebar. Everything else is the library: prerequisite material and deep single-topic pages you enter from a chapter, not a syllabus you work through first.
 
 **Agentic Architecture Patterns** is eight design decisions you will face in any multi-agent system, each given as a problem, a diagram, and a test you can apply to your own system. **Teardowns: Systems I Built** takes systems I actually built and takes them apart in the same order every time, so you can watch the eight patterns hold and fail in real code.
@@ -38,7 +40,7 @@ flowchart TB
   R3["The Frontier"]:::external
 ```
 
-<p className="fig-caption"><strong>Figure 0.1</strong> — The book is the two middle boxes. Foundations and Building Blocks lead into it; the three reference sections hang off it, entered from a chapter's own links rather than read in sequence.</p>
+<p className="fig-caption"><strong>Figure 0.1</strong> — The book is the two middle boxes. Foundations and Building Blocks lead into it; the three reference sections hang off it, entered from a chapter's own links rather than read in sequence. ("RAG" in the Building Blocks box is retrieval-augmented generation — having the model look documents up before it answers, instead of relying only on what it already knows.)</p>
 
 ## Three ways to read it
 
@@ -57,7 +59,7 @@ The highest-value path if you're not here to learn in the abstract:
 - Surprise bill → Cost-Aware Model Routing
 - Bad output shipped to a user → [Stage Gates](./patterns/stage-gates) + QA Pipelines
 - Can't tell what state a run is in, or can't resume one → State Machines
-- Got prompt-injected → Failure Modes and Attack Surfaces
+- Someone hid instructions inside content the system reads (a document, a webpage, a user message) and it followed them → Failure Modes and Attack Surfaces
 - Reviewers flag everything and nothing ships → LLM-as-Judge
 
 ### Thirty minutes

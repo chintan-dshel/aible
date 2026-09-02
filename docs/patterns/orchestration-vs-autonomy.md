@@ -38,7 +38,7 @@ flowchart TB
   end
 ```
 
-<p className="fig-caption"><strong>Figure 1.1</strong> — Same task, two shapes. The workflow's call count and order are known before it runs. The loop's are not — LD can route back to itself an unbounded number of times.</p>
+<p className="fig-caption"><strong>Figure 1.1</strong> — Same task, two shapes. The workflow's call count and order are known before it runs. The loop's are not — the "What next?" decision can route back to itself an unbounded number of times.</p>
 
 Cost is the easy difference between the two. The workflow costs four calls, every run, and you can put that in a spreadsheet and the spreadsheet will be right. The loop might finish in three calls or thirty, and the number that actually hurts isn't the average, it's the tail — the run you meet in production, not in testing. The harder difference is the stopping condition: the workflow's is a line of code, the loop's is a judgment the model makes fresh each time, on a task it may or may not recognize as finished.
 
@@ -62,7 +62,7 @@ flowchart LR
 
 <p className="fig-caption"><strong>Figure 1.2</strong> — The spectrum. Moving right, code gives up more decisions to the model. ProjectOS sits at the left end: a static lookup table, no loop anywhere in the routing path.</p>
 
-The middle point is the one most systems actually want, and it's easy to undersell because it doesn't feel as "agentic" as the right end. Orchestrated multi-agent means code still decides which specialist handles a given piece of work, usually from a small, enumerable set of states or intents, but each specialist may itself run a short bounded sequence, or even a small loop with a hard iteration cap. The router doesn't loop. Only the thing it routes to, briefly, might.
+The middle point is the one most systems actually want, and it's easy to undersell because it doesn't feel as autonomous — as much like the model is really deciding things — as the right end. Orchestrated multi-agent means code still decides which specialist handles a given piece of work, usually from a small, enumerable set of states or intents, but each specialist may itself run a short bounded sequence, or even a small loop with a hard iteration cap. The router doesn't loop. Only the thing it routes to, briefly, might.
 
 Here's the same routing decision built both ways. The difference isn't the presence of an `if` — it's whether anything on the right side of that `if` can call itself:
 
@@ -83,14 +83,14 @@ def agent_loop(state, max_iterations=10):
     raise IterationLimitExceeded()
 ```
 
-`route()` is a dictionary lookup doing a design pattern's job. It can't spend more than one call's worth of money or take more than one call's worth of action per invocation, because nothing inside it can call itself. `agent_loop()` can, up to `max_iterations`, and that cap is carrying the entire weight of keeping it bounded — delete the cap and the function has no ceiling at all. Chapter 2 covers what a real gate on that boundary looks like once the check is more than a loop counter.
+`route()` is a dictionary lookup — a table you hand a key to and get a value back — doing the job of picking the right specialist without ever running code that could call itself. It can't spend more than one call's worth of money or take more than one call's worth of action per use, because nothing inside it can call itself. `agent_loop()` can, up to `max_iterations` (the hard cap on how many times it's allowed to go around), and that cap is carrying the entire weight of keeping it bounded — delete the cap and the function has no ceiling at all. Chapter 2 covers what a real gate on that boundary looks like once the check is more than a loop counter.
 
 ## Decision rules
 
 ### Use a fixed workflow when
 
 - The steps and their order are knowable before the run starts. "Research, then draft, then review" doesn't need a model to decide it's research-then-draft-then-review.
-- You need a predictable cost and latency budget. A workflow's call count is a constant; a loop's is a random variable with a long tail.
+- You need a predictable cost and response-time budget. A workflow's call count is fixed; a loop's varies run to run, and the rare bad run can be far worse than the typical one.
 - Auditability matters. "What did the system do" for a workflow is the code. For a loop, it's whatever the model decided at each of an unknown number of steps.
 
 ### Use orchestrated multi-agent when

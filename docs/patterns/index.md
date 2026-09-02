@@ -17,9 +17,9 @@ Eight design decisions you will face in any multi-agent system worth running in 
 
 ## Before you start
 
-These chapters assume you've read [How LLMs Work](../foundations/how-llms-work) and the [Agentic Building Blocks](../core-building-blocks/) section, in particular [Function Calling](../core-building-blocks/function-calling) (the agent loop that chapter 1's "autonomy" end of the spectrum *is*) and [Multi-Agent Systems](../core-building-blocks/multi-agent-systems) (the topologies chapter 1 refines).
+These chapters assume you've read [How LLMs Work](../foundations/how-llms-work) and the [Agentic Building Blocks](../core-building-blocks/) section, in particular [Function Calling](../core-building-blocks/function-calling) — the agent loop, meaning a model repeatedly picking a tool, seeing the result, and deciding what to do next, which is what chapter 1's "autonomy" end of the spectrum actually *is* — and [Multi-Agent Systems](../core-building-blocks/multi-agent-systems), which covers topologies: the different shapes several agents can be arranged in, one after another, side by side, or a router handing work to specialists, which chapter 1 refines.
 
-Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand tokens of context costs a fraction of a cent, so an agent loop that runs unchecked for ten steps is not free — it's ten of those. And if five agent calls each hand off to the next at 95% reliability, the chain as a whole succeeds about 77% of the time (0.95⁵), not 95%. Chapter 2 is the pattern that exists because of that second number.
+Two numbers worth having before chapter 1. First, cost: a call to Claude's mid-tier model ("Sonnet"), at a few thousand tokens of context — roughly a few thousand words of text the model has to read for that one call — costs a fraction of a cent. That sounds negligible until an agent loop runs unchecked for ten steps instead of one; now it's ten of those, not one. Second, reliability: if five agent calls each hand off to the next at 95% reliability, the chain as a whole doesn't succeed 95% of the time, it succeeds about 77% of the time (0.95 multiplied by itself five times). Chapter 2 is the pattern that exists because of that second number.
 
 ## Chapters
 
@@ -27,7 +27,7 @@ Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand 
 |---|---|---|
 | 1 | [Orchestration vs. autonomy](./orchestration-vs-autonomy) | Can you write down, right now, the fixed sequence of calls this task requires? If yes, you don't need a loop. |
 | 2 | [Stage gates](./stage-gates) | Ask: if this gate fails on a real run tomorrow, what happens next, and who finds out? |
-| 3 | [State machines](./state-machines) | Grep the codebase for every place this state gets written — do they all call the same function? |
+| 3 | [State machines](./state-machines) | Search your code for every place this state gets written — do they all call the same function? |
 | 4 | [LLM-as-judge](./llm-as-judge) | If I ran this judge against twenty examples I've already scored myself, would it agree with me eight times out of ten? |
 | 5 | [QA pipelines](./qa-pipelines) | Can you name, for each reviewer, one category of defect the other reviewers would not have caught? |
 | 6 | [Cost-aware model routing](./cost-aware-model-routing) | For the last expensive call, can you say which rule sent it there and what it cost — both, for the same call? |
@@ -46,4 +46,4 @@ Every diagram on this site uses the same seven node types:
 - <span className="dg-swatch dg-swatch--external"></span> **External / untrusted** — input or a service the system does not control
 - <span className="dg-swatch dg-swatch--fail"></span> **Failure path** — where things go when a check fails
 
-Solid arrows are control flow. Dashed arrows are side effects or things that happen without waiting.
+Solid arrows are control flow, or what happens next. Dashed arrows are side effects — things that happen without waiting for a result, off to the side of the main sequence.

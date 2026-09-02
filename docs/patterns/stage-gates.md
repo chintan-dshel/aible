@@ -9,7 +9,7 @@ description: A gate is a checkpoint between two phases where output is verified 
 
 I designed three gates into ProjectOS. One of them checks anything.
 
-The other two, `gatePlanning` and `gateRetro`, take the project row and return. Their header comments still describe real checks — "blocks planning if the brief's confidence score is below 70," "blocks a new milestone until the previous one has a retro." Neither runs. I didn't find this by reading the file line by line; I found it the way I find most of the dead ends in that codebase, by running the code past a few rounds of AI-assisted review, different models and different prompts, each one told to check whether a function does what its own name and comment claim it does. Read the dispatcher on its own and all three gates look identical: same file, same comment style, same call site. Nothing about the code tells you which one is real. You have to open the function.
+The other two, `gatePlanning` and `gateRetro`, are supposed to check something before letting the next step happen. They don't. Each one reads the project's data — its row, meaning its one record in the database, the stored facts about that particular project — and hands back an empty result without actually checking any of it, the code equivalent of a bouncer who looks at your ID and waves you through without reading it. Their header comments still describe real checks — "blocks planning if the brief's confidence score is below 70," "blocks a new milestone until the previous one has a retro." Neither runs. I didn't find this by reading the file line by line; I found it the way I find most of the dead ends in that codebase, by running the code past a few rounds of AI-assisted review, different models and different prompts, each one told to check whether a function does what its own name and comment claim it does. Read the dispatcher on its own — the piece of code that looks at which stage a project is in and decides which gate function to call — and all three gates look identical: same file, same comment style, same place they get called from. Nothing about the code tells you which one is real. You have to open the function.
 
 A gate is a checkpoint between two phases of a pipeline: work doesn't move on until a check passes. The check can be a rule, a second model, or a person. What makes it worth a chapter isn't the checkpoint itself, it's where it sits — a gate is the last moment before the pipeline spends the next dollar, and the last moment before it does something that can't be undone. Every pipeline reaches both of those moments. Without a gate, it just reaches them without you.
 
@@ -100,7 +100,7 @@ config:
 ---
 flowchart TB
   accTitle: The three kinds of gate checker, in run order
-  accDescr: A rule gate runs first because it is free and deterministic. A judge gate runs second, costing one model call to catch quality problems a schema cannot. A human gate runs last and is slowest, catching intent mismatches.
+  accDescr: A rule gate runs first because it is free and deterministic, always giving the same verdict for the same input. A judge gate runs second, costing one model call to catch quality problems a schema cannot. A human gate runs last and is slowest, catching intent mismatches.
   O["Stage output"]:::agent --> R["Rule gate<br/>schema, ranges,<br/>business rules"]:::gate
   R -- "free, deterministic,<br/>catches shape" --> J["Judge gate<br/>a second model scores<br/>against a rubric"]:::gate
   J -- "costs a call,<br/>catches quality" --> H["Human gate<br/>a person approves"]:::human
@@ -109,7 +109,7 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 2.3</strong> — The three kinds of checker, in the order they should run. Each is more expensive and catches a different class of defect than the one before it.</p>
 
-These three don't compete, they layer. A rule gate is free and deterministic, so it goes first and rejects anything malformed before a model or a person ever has to look at it. A judge gate costs a call and catches what a schema can't — a plan that's valid JSON but assigns forty hours of work to a ten-hour week. Chapter 4 is about building a judge you can actually trust. A human gate is the slowest of the three, and the only one that catches a mismatch between what the system produced and what the person actually wanted.
+These three don't compete, they layer. A rule gate is free and deterministic — it always gives the same verdict for the same input, no AI judgment involved — so it goes first and rejects anything malformed before a model or a person ever has to look at it. A judge gate costs a call and catches what a schema (a definition of what fields the data must have, and in what shape) can't — a plan that's correctly formatted but assigns forty hours of work to a ten-hour week. Chapter 4 is about building a judge you can actually trust. A human gate is the slowest of the three, and the only one that catches a mismatch between what the system produced and what the person actually wanted.
 
 The mistake I see most often — and made myself, in the ProjectOS design — is skipping the cheap layers and putting a person on everything. People stop reading what they're shown too often to see, and a human gate that fires on every turn eventually gets approved without being read at all. I don't have a clean number for how fast that happens, only that it does. Chapter 5 is about keeping the human gate rare enough to still mean something.
 
@@ -150,7 +150,7 @@ Three places in any pipeline earn a gate's cost. Before the expensive call: vali
 - The stage is cheap and reversible. Validate the output, log it, move on — a gate is for stopping, validation is for noticing.
 - Your only criterion is a proxy for the thing you actually care about. I built exactly this mistake into ProjectOS: a confidence score meant to catch a bad brief that instead tracked how many assumptions the brief admitted to, so the honest briefs failed and the vague ones sailed through. More in the teardown below.
 
-One more rule chapter 3 earns properly: the gate's criterion has to be stored state, not something inferred from a conversation. "The founder approved the plan" is a boolean column with a timestamp, or it's a guess.
+One more rule chapter 3 earns properly: the gate's criterion has to be stored state, not something inferred from a conversation. "The founder approved the plan" is a boolean column — a database field that holds only yes or no — with a timestamp, or it's a guess.
 
 ### The test
 
@@ -160,7 +160,7 @@ Ask: **if this gate fails on a real run tomorrow, what happens next, and who fin
 
 ### The gate that isn't there
 
-A gate gets designed, documented in a header comment, and later disabled with an early return — usually because it blocked something it shouldn't have, and the fastest unblock was to stop it checking rather than fix what it checked. The comment doesn't get touched, because the comment isn't wrong about what the gate was supposed to do. Now the file is lying, and every reader of it, human or model, believes the check still runs. This is `gatePlanning` and `gateRetro` in ProjectOS, and I wrote both of them. Fix: a test that fails when the gate is bypassed. If you can't write that test, there was never a gate there to bypass.
+A gate gets designed, documented in a header comment, and later disabled with an early return — a line of code that hands back "pass" immediately, before the actual check ever runs — usually because it blocked something it shouldn't have, and the fastest unblock was to stop it checking rather than fix what it checked. The comment doesn't get touched, because the comment isn't wrong about what the gate was supposed to do. Now the file is lying, and every reader of it, human or model, believes the check still runs. This is `gatePlanning` and `gateRetro` in ProjectOS, and I wrote both of them. Fix: a test that fails when the gate is bypassed. If you can't write that test, there was never a gate there to bypass.
 
 ### Gate on the wrong proxy
 
@@ -168,7 +168,7 @@ The criterion measures something adjacent to what you actually care about. Fix: 
 
 ### Client-side gate
 
-The check is enforced by whether a button is enabled. The API accepts the transition from any state, from anyone who owns the project. Fix: the server enforces the criterion; the UI mirrors it for convenience, nothing more.
+The check is enforced by whether a button is enabled. That button lives in the user's own browser, which the user controls completely — disabling it there stops nothing if they can still send the request directly, and the system accepts the transition from any state, from anyone who owns the project. Fix: the server enforces the criterion; the interface mirrors it for convenience, nothing more.
 
 ### Unbounded retry
 
@@ -180,13 +180,13 @@ Pass and fail aren't written anywhere. You can't tell whether the gate fires, ho
 
 ### The rubber stamp
 
-The human gate fires so often, or shows so much, that the person stops reading it. ProjectOS avoids this one at its single human gate: the approve endpoint returns a plan summary instead of silently succeeding when the request arrives without an explicit `confirmed: true`, so approving requires looking at something, not just clicking through a default. Fix, generally: fire rarely, show a summary that fits on one screen, require an explicit value rather than defaulting to yes.
+The human gate fires so often, or shows so much, that the person stops reading it. ProjectOS avoids this one at its single human gate: the part of the system that handles an approval request (its "endpoint") returns a plan summary instead of silently succeeding when the request arrives without an explicit `confirmed: true`, so approving requires looking at something, not just clicking through a default. Fix, generally: fire rarely, show a summary that fits on one screen, require an explicit value rather than defaulting to yes.
 
 ## Where it shows up in the teardowns
 
-- **[ProjectOS](../teardowns/projectos)** is this chapter's whole argument in one codebase. The live gate — plan approval — is a human gate done right: a transactional flip with a concurrency guard and a decision log, see [The gates](../teardowns/projectos#the-gates). The other two are the failure mode above, [The gate that isn't there](#the-gate-that-isnt-there), sitting in the same file under the same dispatcher. The milestone-completion check that should be a third gate lives entirely in a UI button — [Client-side gate](#client-side-gate).
+- **[ProjectOS](../teardowns/projectos)** is this chapter's whole argument in one codebase. The live gate — plan approval — is a human gate done right: the approval either fully commits or doesn't happen at all, nothing half-done (a "transactional" flip of a stored yes/no value), guarded so two people approving at the same instant can't both succeed and corrupt the record, with a decision log, see [The gates](../teardowns/projectos#the-gates). The other two are the failure mode above, [The gate that isn't there](#the-gate-that-isnt-there), sitting in the same file under the same dispatcher. The milestone-completion check that should be a third gate lives entirely in a UI button — [Client-side gate](#client-side-gate).
 - **[Lyceum](../teardowns/lyceum)** runs generated course content through a four-phase QA pipeline where each phase gates the next before it reaches a student.
-- **[Second Brain](../teardowns/second-brain)** gates at ingest: existing articles are shown as a diff before they're updated, and nothing lands in the wiki without a person looking at that diff.
+- **[Second Brain](../teardowns/second-brain)** gates at ingest: existing articles are shown as a diff — the old and new text side by side, with the changes highlighted — before they're updated, and nothing lands in the wiki without a person looking at that diff.
 - **This site** is written through a human gate too, though it isn't one of the teardowns — three reviewer agents run in parallel over each chapter, and I decide what to apply. They over-flag, badly, and if I applied even half of what came back these pages would be twice as long and worse. The gate is me, sitting there rejecting things.
 
 :::tip[My take]
