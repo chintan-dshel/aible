@@ -10,7 +10,7 @@ description: A stage-gated, four-agent project manager for solo founders, with a
 ProjectOS is an AI project manager for solo founders. A founder describes an idea in chat; four Claude agents take it through a brief, a plan, daily execution check-ins, and retrospectives. It runs on Node.js, Express, PostgreSQL, and React, and is deployed on Railway.
 
 :::note[What was read]
-Backend source at commit `827bda2` (2026-05-20): all 51 files under `src/`, the 23 migrations (`000` through `022`), the `eval/` harness, and the API tests. Re-verified 2026-09-02 against `github.com/chintan-dshel/project-os` directly — `src/` is byte-for-byte identical to the local copy this chapter was originally read from. Frontend: the dashboard view and the project hook, for stage-transition logic only. Repo docs: `README.md`, `PATTERNS.md`, `docs/DECISIONS.md`. One test was executed to confirm a finding. Nothing below is inferred from the repo's own descriptions where the code says otherwise.
+Backend source at commit `827bda2` (2026-05-20): all 51 files under `src/`, the 23 migrations (`000` through `022`), the `eval/` harness, and the API tests. Re-verified 2026-09-02 against `github.com/chintan-dshel/project-os` directly — `src/` is byte-for-byte identical to the local copy this chapter was originally read from. Frontend: the dashboard view and the project hook, for stage-transition logic only. Repo docs: `README.md`, `PATTERNS.md`, `docs/DECISIONS.md`. I ran one test myself, the `TRANSITION_STAGES` one, to confirm a finding I didn't believe until I saw it fail. Nothing below is inferred from the repo's own descriptions where the code says otherwise.
 :::
 
 ## What it does
@@ -223,7 +223,7 @@ Tests replace `fetch`, not `callClaude`. The wrapper, the trace write, and the j
 
 ## Weaknesses
 
-All of the following were confirmed in the source at the commit named above.
+I checked every one of these against the source at the commit named above. Where I couldn't confirm something, it isn't on this list.
 
 1. **Two of three gates are no-ops.** `gatePlanning` and `gateRetro` return without checking anything. The file header and the dispatcher still describe them as active checks.
 2. **Milestone completion is enforced only in the browser.** `POST /projects/:id/transition` accepts any of `execution`, `milestone_retro`, `ship_retro`, or `complete` from any current stage, as long as the caller owns the project. The all-tasks-done condition lives in `DashboardView.jsx`.

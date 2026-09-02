@@ -7,7 +7,9 @@ description: The spectrum from a fixed workflow that calls models at known point
 
 # Orchestration vs. autonomy
 
-Every multi-agent system sits somewhere on a spectrum between two ends. At one end, code decides what happens next: a fixed sequence of steps, each one a model call, wired together the way you'd wire any function pipeline. At the other end, the model decides what happens next: it reads the situation, picks a tool, looks at the result, and picks again, for as many steps as it judges necessary. The first is a workflow. The second is an agent loop. Almost every real system is a mixture, and the mixture is a design decision, not an accident.
+One question decides the shape of a multi-agent system, and you can answer it before you write a line of code: who picks the next step, your code or the model?
+
+If it's your code, you've built a workflow — research, then draft, then review, three calls in a known order, and you could write that order down before the run starts. If it's the model, you've built an agent loop: it reads the state, picks a tool, looks at what came back, picks again, and stops when it decides it's finished. Most systems answer that question differently in different places, which is fine. What isn't fine is never asking it, which is the common case — autonomy arrives one "let the model figure this part out" at a time until nobody can say where the line actually is.
 
 ## The problem in one diagram
 
@@ -38,9 +40,11 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 1.1</strong> — Same task, two shapes. The workflow's call count and order are known before it runs. The loop's are not — LD can route back to itself an unbounded number of times.</p>
 
-The workflow costs exactly four calls, every run, and you can say in advance what each one does. The loop might finish in three calls or in thirty; whether it finishes at all depends on the model consistently recognizing "done." Neither shape is better in the abstract. The workflow is worse at handling a task whose structure genuinely can't be known ahead of time — you can't hardcode the order of a debugging session. The loop is worse at a task whose structure is already known, because every extra call is unearned cost and unearned risk with no compensating benefit.
+Cost is the easy difference between the two. The workflow costs four calls, every run, and you can put that in a spreadsheet and the spreadsheet will be right. The loop might finish in three calls or thirty, and the number that actually hurts isn't the average, it's the tail — the run you meet in production, not in testing. The harder difference is the stopping condition: the workflow's is a line of code, the loop's is a judgment the model makes fresh each time, on a task it may or may not recognize as finished.
 
-The mistake this chapter is about is picking the loop by default, because it feels more like "an agent" and less like plumbing. Most tasks that reach production have a knowable structure. The loop is for the ones that don't.
+Neither shape wins in the abstract. The workflow fails on a task whose structure you genuinely can't know in advance — you can't hardcode the order of a debugging session, because step two depends on what step one printed. A loop handles that, and is pure waste on everything else: each extra iteration on a task you could have written down buys nothing, costs a call, and gives the model one more chance to go somewhere your fixed sequence would never have gone.
+
+So the default matters, and in my experience the default is usually wrong in the same direction. People reach for the loop because building one feels like building an agent, and writing the sequence down feels like plumbing. Most tasks that reach production have a knowable shape. The loop is for the ones that don't.
 
 ## The pattern
 
@@ -56,11 +60,11 @@ flowchart LR
   A["Fixed workflow<br/>code calls models,<br/>known order"]:::orch --> B["Orchestrated multi-agent<br/>code routes between agents,<br/>each agent still bounded"]:::orch --> C["Autonomous loop<br/>model chooses its own<br/>next action"]:::agent
 ```
 
-<p className="fig-caption"><strong>Figure 1.2</strong> — The spectrum. Moving right, code gives up more decisions to the model. ProjectOS (chapter 9) sits at the left end: a static lookup table, no loop anywhere in the routing path.</p>
+<p className="fig-caption"><strong>Figure 1.2</strong> — The spectrum. Moving right, code gives up more decisions to the model. ProjectOS sits at the left end: a static lookup table, no loop anywhere in the routing path.</p>
 
-The middle point is the one most systems actually want, and it's easy to undersell because it doesn't feel as "agentic" as the right end. **Orchestrated multi-agent** means code still decides which specialist handles a given piece of work — usually from a small, enumerable set of states or intents — but each specialist may itself run a short bounded sequence, or even a small loop with a hard iteration cap. The router doesn't loop. Only the thing it routes to, briefly, might.
+The middle point is the one most systems actually want, and it's easy to undersell because it doesn't feel as "agentic" as the right end. Orchestrated multi-agent means code still decides which specialist handles a given piece of work, usually from a small, enumerable set of states or intents, but each specialist may itself run a short bounded sequence, or even a small loop with a hard iteration cap. The router doesn't loop. Only the thing it routes to, briefly, might.
 
-Here is the same routing decision built two ways — the difference is not the presence of an `if`, it's whether anything on the right side of that `if` can call itself:
+Here's the same routing decision built both ways. The difference isn't the presence of an `if` — it's whether anything on the right side of that `if` can call itself:
 
 ```python
 # Orchestrated: a lookup, not a loop. This function cannot run twice
@@ -79,7 +83,7 @@ def agent_loop(state, max_iterations=10):
     raise IterationLimitExceeded()
 ```
 
-The orchestrated version is a dictionary lookup wearing a design pattern's clothes — which is the point. It cannot spend more than one call's worth of money or take more than one call's worth of action per invocation, because nothing in it can call itself. The autonomous version can, up to `max_iterations`, and that cap is doing all the work of keeping it bounded; delete it and the function is unbounded. Chapter 2 is what a gate on that boundary looks like when the check is more than a loop counter.
+`route()` is a dictionary lookup doing a design pattern's job. It can't spend more than one call's worth of money or take more than one call's worth of action per invocation, because nothing inside it can call itself. `agent_loop()` can, up to `max_iterations`, and that cap is carrying the entire weight of keeping it bounded — delete the cap and the function has no ceiling at all. Chapter 2 covers what a real gate on that boundary looks like once the check is more than a loop counter.
 
 ## Decision rules
 
@@ -98,8 +102,8 @@ The orchestrated version is a dictionary lookup wearing a design pattern's cloth
 ### Use an autonomous loop when
 
 - The task's structure is discovered during the task, not known before it. Debugging, open-ended research, and multi-step tool use where the next tool depends on what the last one returned are the standard cases.
-- You've already tried the workflow and it broke on inputs whose shape you didn't anticipate, repeatedly, in a way a slightly more flexible loop would handle.
-- You are prepared to pay for chapter 2 (a gate on the loop's output), chapter 3 (state that survives a crash mid-loop), and chapter 8 (a hard iteration cap and a spend cap) before it reaches production. An autonomous loop without those three is a liability, not a feature.
+- You've tried the workflow first and it broke on a shape of input you didn't anticipate, more than once, in a way a bit more flexibility would actually handle.
+- You're prepared to pay for chapter 2 (a gate on the loop's output), chapter 3 (state that survives a crash mid-loop), and chapter 8 (a hard iteration cap and a spend cap) before it reaches production. Skip those three and the loop isn't a feature, it's a liability with a demo attached.
 
 ### The test
 
@@ -109,19 +113,19 @@ Ask: **can I write down, right now, the fixed sequence of calls this task requir
 
 ### Autonomy by default
 
-The system is built as a loop because that's what "agent" suggested, for a task whose steps were knowable the whole time. Every iteration is unearned latency, unearned cost, and an unearned chance for the model to route somewhere the workflow would never have gone. Fix: write down the fixed sequence first. Only add a loop where the sequence genuinely can't be written down.
+A system gets built as a loop because that's what "agent" suggested, for a task whose steps were knowable the whole time. Every iteration is unearned latency, unearned cost, and one more chance for the model to go somewhere the fixed sequence never would have. Fix: write the sequence down first. Only add a loop where it genuinely can't be written down.
 
 ### The loop with no exit condition the model reliably recognizes
 
-"Done" is defined by the model's own judgment, and the model is inconsistent about recognizing it — it re-searches after finding the answer, or revises a draft that was already fine. Chapter 8 covers this at length; the short version is that `max_iterations` is a safety net, not a design, and a loop that regularly hits its cap is a loop whose stopping criterion is broken, not just capped.
+"Done" is left to the model's own judgment, and that judgment is inconsistent — it re-searches after already finding the answer, or revises a draft that was fine. ProjectOS has a version of this that never became a loop in the code, only in the conversation: the intake agent was originally free to keep asking clarifying questions for as long as it judged the brief incomplete, and in practice that meant it kept probing every open unknown instead of ever finalizing a brief. The fix wasn't a retry counter, because there was no retry to count — it was a prompt rule capping the agent to at most one clarifying question, plus a forced override that makes it emit the brief the moment the founder confirms, regardless of what it still thinks is ambiguous. Chapter 8 covers this failure mode at length; the short version here is that an iteration cap is a safety net, not a design, and a loop or a conversation that regularly needs its cap hit is one whose stopping criterion never actually worked.
 
 ### Orchestration with a loop hiding inside the router
 
-The router itself is described as "just routing" but contains a retry-until-satisfied path that can call itself. This is an autonomous loop wearing orchestration's reputation. Fix: if any function in the routing path can invoke itself based on a model's output, it's the autonomous end of the spectrum, regardless of what it's called.
+The router is described as "just routing," but somewhere in it is a retry-until-satisfied path that can call itself — an autonomous loop wearing orchestration's reputation. Fix: if any function in the routing path can invoke itself based on a model's output, that's the autonomous end of the spectrum, whatever it's called.
 
 ### No budget for what autonomy actually costs
 
-A loop is approved because "it'll probably take two or three steps." Nothing enforces that; chapter 6 is the pattern for making the cost of the unbounded end actually bounded in practice, not just in the common case.
+A loop gets approved because "it'll probably take two or three steps." Nothing enforces that. Chapter 6 is the pattern for making the unbounded end's cost actually bounded, not just bounded in the common case.
 
 ## Where it shows up in the teardowns
 
@@ -131,7 +135,7 @@ A loop is approved because "it'll probably take two or three steps." Nothing enf
 
 :::tip[My take]
 
-The tell I look for first, in a codebase or in my own draft design, is whether I can point at the one function that would have to call itself for the system to be autonomous. If there isn't one, the system is a workflow no matter how many separate model calls it makes or how many of them are labeled "agent." If there is one, everything downstream — the gate on its output, the state it needs to resume after a crash, the cap on how many times it can go around — stops being optional. Naming that function early is usually the fastest way to find out you didn't need it.
+The tell I look for first, in a codebase or in my own draft design, is whether I can point at the one function that would have to call itself for the system to be autonomous. If there isn't one, the system is a workflow no matter how many separate model calls it makes or how many of them get labeled "agent." If there is one, everything downstream — the gate on its output, the state it needs to resume after a crash, the cap on how many times it can go around — stops being optional. ProjectOS's intake agent is the closest thing I've built to a loop that got caught early: not a real loop in the code, but a conversation with no stopping rule, which behaves like one. Naming the thing that could run forever, before it does, is usually the fastest way to find out you didn't need it to.
 
 :::
 

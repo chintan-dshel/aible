@@ -7,7 +7,11 @@ description: A gate is a checkpoint between two phases where output is verified 
 
 # Stage gates
 
-A stage gate is a checkpoint between two phases of a pipeline. Work does not pass from one phase to the next until a check passes. The check can be a rule, a second model, or a person. In an agentic system the gate is the one place where you get to decide two things before they happen: whether to spend the next dollar, and whether to take the next step that cannot be undone.
+I designed three gates into ProjectOS. One of them checks anything.
+
+The other two, `gatePlanning` and `gateRetro`, take the project row and return. Their header comments still describe real checks — "blocks planning if the brief's confidence score is below 70," "blocks a new milestone until the previous one has a retro." Neither runs. I didn't find this by reading the file line by line; I found it the way I find most of the dead ends in that codebase, by running the code past a few rounds of AI-assisted review, different models and different prompts, each one told to check whether a function does what its own name and comment claim it does. Read the dispatcher on its own and all three gates look identical: same file, same comment style, same call site. Nothing about the code tells you which one is real. You have to open the function.
+
+A gate is a checkpoint between two phases of a pipeline: work doesn't move on until a check passes. The check can be a rule, a second model, or a person. What makes it worth a chapter isn't the checkpoint itself, it's where it sits — a gate is the last moment before the pipeline spends the next dollar, and the last moment before it does something that can't be undone. Every pipeline reaches both of those moments. Without a gate, it just reaches them without you.
 
 ## The problem in one diagram
 
@@ -31,13 +35,9 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 2.1</strong> — An ungated pipeline. A weak brief becomes a detailed plan, then weeks of tracked work, and finally "lessons" written to memory. Every stage compounds the defect from the stage before.</p>
 
-Figure 2.1 shows three things going wrong at once, and all three are the same mistake.
+This is the shape the problem takes with no checks anywhere: a founder's two-line idea becomes a brief, the brief becomes a forty-task plan, the plan becomes three weeks of tracked execution. Nothing in that chain malfunctions. The planning agent doesn't know the brief is thin — nobody asked it to check, they asked it to plan — so it does its job well, on bad input, and hands back something confident and detailed and wrong from the first line. The execution agent inherits that and adds three weeks of tracked progress on top of it. By the time anyone notices, usually mid-execution, when a task stops making sense against the plan, the original mistake has already been amplified twice.
 
-**Errors compound.** The planning agent does not know the brief is vague. It does what it was told and produces a confident, detailed plan. The execution agent then tracks progress against that plan. By the time a person notices, the defect has been amplified twice. If a chain of five agent calls is each individually 95% reliable, the chain as a whole is not 95% reliable — it's roughly 0.95⁵, about 77%. Chapter 8 covers error propagation in detail; the short version is that the cheapest place to catch a defect is the boundary where it was made.
-
-**Money is spent on work that will be thrown away.** Each stage after the defect burns tokens producing output that has to be regenerated. In a system with human turns between stages, it also burns the person's time.
-
-**Irreversible things happen on unverified state.** The last arrow in the diagram writes to a knowledge store that future projects will read. A retro derived from a wrong plan becomes advice for the next plan. The write cannot be un-taken without knowing it was wrong.
+The arithmetic behind that is unforgiving. Chain five agent calls at 95% reliability each and the chain isn't 95% reliable — it's roughly 0.95⁵, about 77%. Chapter 8 works through error propagation properly; the point here is narrower: the cheapest place to catch a defect is the boundary where it was made, and every stage after that boundary is spending real money — tokens, and a person's time if there are human turns in the loop — producing output that has to be regenerated. The last arrow in the diagram is the one that costs the most to get wrong: it writes to a store future runs will read from. A retro built on a bad plan becomes advice for the next plan. You can't un-write that once you know it was wrong; you can only add a correction on top of it.
 
 ## The pattern
 
@@ -60,14 +60,14 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 2.2</strong> — Anatomy of a gate. Output is checked; on pass it moves on; on fail it is retried a bounded number of times, then halted. Either way the decision is written down.</p>
 
-Figure 2.2 is the whole pattern. A gate has four parts, and something that is missing any one of them is not a gate:
+A gate has four parts. Leave any one of them out and what you've built isn't a gate, it just looks like one on a diagram:
 
-1. **A criterion.** What counts as pass. It has to be something a colleague could disagree with you about. "The plan has at least one phase, every task has an estimate" is a criterion. "The plan is good" is not.
-2. **A checker.** The thing that applies the criterion. Figure 2.3 shows the three kinds.
-3. **A fail action.** Retry with the error fed back, halt and route to an earlier stage, or escalate to a person. The retry count is bounded. An unbounded retry is a loop, and chapter 8 is about what loops cost.
-4. **A record.** The gate writes down what it decided and why. Without the record you cannot tell whether the gate is working, whether it fires too often, or whether anyone is rubber-stamping it. Chapter 3 is about where that record lives.
+1. **A criterion.** What counts as pass — something a colleague could disagree with you about. "The plan has at least one phase, every task has an estimate" is a criterion. "The plan is good" is not.
+2. **A checker.** The thing that applies the criterion. Figure 2.3 covers the three kinds.
+3. **A fail action.** Retry with the error fed back, halt and route to an earlier stage, or escalate to a person. The retry count is bounded — an unbounded retry is a loop, and chapter 8 is what loops cost.
+4. **A record.** The gate writes down what it decided and why. Chapter 3 is about where that record lives; without it you can't tell whether the gate is working, firing too often, or being rubber-stamped.
 
-A minimal rule gate, in full — the part that most implementations skip is the retry ceiling and the error being fed back on the next attempt, not the check itself:
+Here's a minimal rule gate with all four parts labelled. The part most implementations skip isn't the check, it's the retry ceiling and feeding the error back on the next attempt:
 
 ```python
 def validate_plan(plan: dict) -> str | None:
@@ -90,7 +90,7 @@ def run_gated(build_plan, max_attempts=2):
     raise GateHalt(f"plan failed validation twice: {error}")  # part: fail action
 ```
 
-That is the whole pattern: a criterion (`validate_plan`), a checker (calling it), a fail action (retry with `previous_error`, then `GateHalt`), and a record (`log_gate_decision`). Everything else in this chapter is what happens when one of those four is missing.
+`validate_plan` is the criterion, calling it is the checker, the retry-with-`previous_error`-then-`GateHalt` is the fail action, `log_gate_decision` is the record. Every failure mode later in this chapter is what happens when one of those four goes missing.
 
 ```mermaid
 ---
@@ -109,9 +109,9 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 2.3</strong> — The three kinds of checker, in the order they should run. Each is more expensive and catches a different class of defect than the one before it.</p>
 
-The three checkers in Figure 2.3 are not alternatives. They layer. A rule gate is free and deterministic, so it runs first and rejects anything malformed before a model or a person ever sees it. A judge gate costs a model call and catches things a schema cannot: a plan that is valid JSON but assigns forty hours of work to a ten-hour week. Chapter 4 is about how to build one that you can trust. A human gate is the slowest and the only one that can catch a mismatch between what the system produced and what the person actually wanted.
+These three don't compete, they layer. A rule gate is free and deterministic, so it goes first and rejects anything malformed before a model or a person ever has to look at it. A judge gate costs a call and catches what a schema can't — a plan that's valid JSON but assigns forty hours of work to a ten-hour week. Chapter 4 is about building a judge you can actually trust. A human gate is the slowest of the three, and the only one that catches a mismatch between what the system produced and what the person actually wanted.
 
-The mistake is to skip the cheap layers and put a person on everything. People stop reading what they are shown too often to see, and a human gate that fires on every turn eventually gets approved without being read at all — I don't have a clean number for how fast that happens, only that it does. Chapter 5 is about keeping the human gate rare enough to mean something.
+The mistake I see most often — and made myself, in the ProjectOS design — is skipping the cheap layers and putting a person on everything. People stop reading what they're shown too often to see, and a human gate that fires on every turn eventually gets approved without being read at all. I don't have a clean number for how fast that happens, only that it does. Chapter 5 is about keeping the human gate rare enough to still mean something.
 
 ```mermaid
 ---
@@ -132,70 +132,66 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 2.4</strong> — Where gates belong. Before money is spent, before something cannot be undone, and before a person acts on the output.</p>
 
-Figure 2.4 answers the placement question. There are three places in any pipeline where a gate earns its cost:
-
-- **Before the expensive call.** Validate input before sending it to the model that costs the most. Rate limits, spend caps, and input checks all live here.
-- **Before the irreversible action.** A database write, an email, a payment, a stage transition. This is where the human gate usually belongs, because it is the last point at which a wrong answer costs nothing.
-- **Before the user sees it.** Output validation and safety checks. A wrong answer here is recoverable but expensive in trust.
+Three places in any pipeline earn a gate's cost. Before the expensive call: validate input before sending it to the model that costs the most — rate limits, spend caps, input checks. Before the irreversible action: a database write, an email, a payment, a stage transition — this is usually where the human gate belongs, because it's the last point where a wrong answer is still free. Before the user sees it: output validation and safety checks, where a wrong answer is recoverable but costs trust.
 
 ## Decision rules
 
 ### Add a gate when
 
 - The next stage costs more than the check does. A schema check is free; a planning call that generates six thousand tokens is not.
-- The next action is hard to reverse. Anything that writes to shared state, sends a message to another person, or moves money.
+- The next action is hard to reverse: writes to shared state, sends a message to another person, moves money.
 - This stage's output fans out. If three later stages all read from it, a defect here becomes three defects there.
 - You can state the criterion as a sentence someone could disagree with.
 
 ### Do not add a gate when
 
-- The check would cost more than the stage it protects. Gating a one-line summary with a judge call doubles its cost for nothing.
-- You cannot state the criterion. A gate without a criterion either always passes, which is decoration, or always fails, which is a wall.
-- The stage is cheap and reversible. Validate the output, log it, and move on. A gate is for stopping; validation is for noticing.
-- The only criterion you have is a proxy for the thing you care about. A "confidence score" that actually measures how many assumptions were logged will block honest outputs and pass evasive ones. The ProjectOS teardown has exactly this case.
+- The check would cost more than the stage it protects — gating a one-line summary with a judge call doubles its cost for nothing.
+- You can't state the criterion. A gate without one either always passes (decoration) or always fails (a wall).
+- The stage is cheap and reversible. Validate the output, log it, move on — a gate is for stopping, validation is for noticing.
+- Your only criterion is a proxy for the thing you actually care about. I built exactly this mistake into ProjectOS: a confidence score meant to catch a bad brief that instead tracked how many assumptions the brief admitted to, so the honest briefs failed and the vague ones sailed through. More in the teardown below.
 
-One more rule that chapter 3 will earn properly: the gate's criterion has to be stored state, not something inferred from the conversation. "The founder approved the plan" is a boolean column with a timestamp, or it is a guess.
+One more rule chapter 3 earns properly: the gate's criterion has to be stored state, not something inferred from a conversation. "The founder approved the plan" is a boolean column with a timestamp, or it's a guess.
 
 ### The test
 
-Ask: **if this gate fails on a real run tomorrow, what happens next, and who finds out?** If the answer is "nothing" or "nobody," you have drawn a gate on a diagram and not built one.
+Ask: **if this gate fails on a real run tomorrow, what happens next, and who finds out?** "Nothing" or "nobody" means you've drawn a gate on a diagram, not built one.
 
 ## Failure modes
 
 ### The gate that isn't there
 
-A gate is designed, documented in a header comment, and later disabled with an early return. The documentation outlives the code. Every reader of the file, human or model, believes the check exists. Fix: every gate has a test that fails when the gate is bypassed. If you cannot write that test, you do not have a gate.
+A gate gets designed, documented in a header comment, and later disabled with an early return — usually because it blocked something it shouldn't have, and the fastest unblock was to stop it checking rather than fix what it checked. The comment doesn't get touched, because the comment isn't wrong about what the gate was supposed to do. Now the file is lying, and every reader of it, human or model, believes the check still runs. This is `gatePlanning` and `gateRetro` in ProjectOS, and I wrote both of them. Fix: a test that fails when the gate is bypassed. If you can't write that test, there was never a gate there to bypass.
 
 ### Gate on the wrong proxy
 
-The criterion measures something adjacent to what you care about. ProjectOS gated planning on a confidence score that turned out to measure assumption density, so honest briefs that logged their unknowns failed and vague briefs that logged nothing passed. The gate was removed, which was the right call. Fix: gate on the thing you would argue about with a colleague, not the number that is easiest to compute.
+The criterion measures something adjacent to what you actually care about. Fix: gate on the thing you'd argue about with a colleague, not the number that's easiest to compute. The teardown below has the specifics of how this went wrong in ProjectOS.
 
 ### Client-side gate
 
-The check is enforced by whether a button is enabled. The API accepts the transition from any state. Fix: the server enforces the criterion; the UI mirrors it for the person's convenience.
+The check is enforced by whether a button is enabled. The API accepts the transition from any state, from anyone who owns the project. Fix: the server enforces the criterion; the UI mirrors it for convenience, nothing more.
 
 ### Unbounded retry
 
-Gate fails, stage regenerates, gate fails, stage regenerates. Fix: a retry ceiling, with the validation error fed back to the model on each attempt, and a distinct halt path when the ceiling is hit. ProjectOS's planning agent caps this at two attempts (`maxAttempts = 2` in `planning.agent.js`) — not a number derived from measuring failure rates, just a practical line drawn to stop the run before it loops indefinitely. The same instinct shows up elsewhere in the same system in a different shape: the intake agent's prompt is told to ask at most one clarifying question, and a separate override forces it to finalize the brief once the founder confirms, so a conversation that would otherwise keep probing every open question gets cut off deliberately rather than left to the model's judgment. Neither number came from data. Both exist because "let it keep going until it's satisfied" turned out to mean, in practice, "it doesn't stop."
+Gate fails, stage regenerates, gate fails, stage regenerates. ProjectOS's planning agent caps this at two attempts — `maxAttempts = 2`, a literal constant in `planning.agent.js` — and that number isn't derived from measuring failure rates, it's a line I drew to stop the run before it could loop indefinitely. The same instinct shows up elsewhere in the same system in a different shape: the intake agent's prompt is told to ask at most one clarifying question, and a separate override forces it to finalize the brief once the founder confirms, so a conversation that would otherwise keep probing every open unknown gets cut off on purpose instead of left to the model's judgment. Neither cap came from data. Both exist because "let it keep going until it's satisfied" turned out to mean, in practice, that it doesn't stop. Fix: a retry ceiling with the error fed back on each attempt, and a distinct halt path when the ceiling is hit.
 
 ### The unrecorded gate
 
-Pass and fail are not written anywhere. You cannot tell whether the gate fires, how often, or whether it catches anything. Fix: every gate decision is a row, with the criterion, the outcome, and the reason.
+Pass and fail aren't written anywhere. You can't tell whether the gate fires, how often, or whether it catches anything. Fix: every gate decision is a row — criterion, outcome, reason.
 
 ### The rubber stamp
 
-The human gate fires so often, or shows so much, that the person stops reading. Fix: fire rarely, show a summary that fits on one screen, and make the approve action require an explicit value rather than a default. ProjectOS returns a plan summary when the approval request arrives without an explicit confirmation, which is the right shape.
+The human gate fires so often, or shows so much, that the person stops reading it. ProjectOS avoids this one at its single human gate: the approve endpoint returns a plan summary instead of silently succeeding when the request arrives without an explicit `confirmed: true`, so approving requires looking at something, not just clicking through a default. Fix, generally: fire rarely, show a summary that fits on one screen, require an explicit value rather than defaulting to yes.
 
 ## Where it shows up in the teardowns
 
-- **[ProjectOS](../teardowns/projectos)** designed three gates and shipped one. The live gate is a human approval that flips a boolean inside a transaction and writes a decision log — see [The gates](../teardowns/projectos#the-gates). The other two are functions that return without checking anything, while the file header still describes them as active: see [The gate that isn't there](#the-gate-that-isnt-there) above. The milestone-completion check that should be a gate lives in a UI button — [Client-side gate](#client-side-gate). This is the chapter's cautionary example and its best example in the same codebase.
+- **[ProjectOS](../teardowns/projectos)** is this chapter's whole argument in one codebase. The live gate — plan approval — is a human gate done right: a transactional flip with a concurrency guard and a decision log, see [The gates](../teardowns/projectos#the-gates). The other two are the failure mode above, [The gate that isn't there](#the-gate-that-isnt-there), sitting in the same file under the same dispatcher. The milestone-completion check that should be a third gate lives entirely in a UI button — [Client-side gate](#client-side-gate).
 - **[Lyceum](../teardowns/lyceum)** runs generated course content through a four-phase QA pipeline where each phase gates the next before it reaches a student.
 - **[Second Brain](../teardowns/second-brain)** gates at ingest: existing articles are shown as a diff before they're updated, and nothing lands in the wiki without a person looking at that diff.
-- **[Aible](../teardowns/aible)** — this site — was written through a human gate between three parallel reviewers and the fix pass. The reviewers over-flag badly; the gate is a person deciding what to apply, and it's the only reason these pages aren't twice as long.
+- **[Aible](../teardowns/aible)** — this site — is written through a human gate too. Three reviewer agents run in parallel over each chapter, and I decide what to apply. They over-flag, badly, and if I applied even half of what came back these pages would be twice as long and worse. The gate is me, sitting there rejecting things.
 
 :::tip[My take]
 
-The gate people skip is never the expensive one — nobody forgets to check a plan before spending six thousand tokens generating tasks from it. The gate people skip is the cheap one that "obviously" won't fail: the milestone-completion check, the stage-transition guard, the thing that's surely fine because a person would never click the button at the wrong time. ProjectOS is the case study: the one gate that got built is the one guarding the most expensive step (plan approval), and the two that got skipped guard steps that felt too obvious to check. They weren't. A gate you didn't think you needed is the one worth writing the failing test for first.
+What surprised me most, going back through this file, wasn't that two gates were dead — it's that I couldn't tell which two just by reading the dispatcher. All three gates are called the same way, described the same way, sitting in the same file. The only thing that told them apart was opening each function and reading past the comment to the return statement, and I only did that systematically after running the code through a few rounds of AI-assisted review pointed specifically at "does this function do what its name claims." A gate's presence in the code that calls it tells you nothing about whether it checks anything. If I take one habit from writing this chapter, it's to stop trusting a dispatcher's shape and start reading every gate's body before I ship it.
 
 :::
 
