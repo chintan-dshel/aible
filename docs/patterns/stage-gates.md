@@ -176,7 +176,7 @@ The check is enforced by whether a button is enabled. The API accepts the transi
 
 ### Unbounded retry
 
-Gate fails, stage regenerates, gate fails, stage regenerates. Fix: a retry ceiling, with the validation error fed back to the model on each attempt, and a distinct halt path when the ceiling is hit. Two attempts is usually enough. If the third attempt would help, the criterion is unclear.
+Gate fails, stage regenerates, gate fails, stage regenerates. Fix: a retry ceiling, with the validation error fed back to the model on each attempt, and a distinct halt path when the ceiling is hit. ProjectOS's planning agent caps this at two attempts (`maxAttempts = 2` in `planning.agent.js`) — not a number derived from measuring failure rates, just a practical line drawn to stop the run before it loops indefinitely. The same instinct shows up elsewhere in the same system in a different shape: the intake agent's prompt is told to ask at most one clarifying question, and a separate override forces it to finalize the brief once the founder confirms, so a conversation that would otherwise keep probing every open question gets cut off deliberately rather than left to the model's judgment. Neither number came from data. Both exist because "let it keep going until it's satisfied" turned out to mean, in practice, "it doesn't stop."
 
 ### The unrecorded gate
 

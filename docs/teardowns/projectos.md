@@ -10,7 +10,7 @@ description: A stage-gated, four-agent project manager for solo founders, with a
 ProjectOS is an AI project manager for solo founders. A founder describes an idea in chat; four Claude agents take it through a brief, a plan, daily execution check-ins, and retrospectives. It runs on Node.js, Express, PostgreSQL, and React, and is deployed on Railway.
 
 :::note[What was read]
-Backend source at commit `827bda2` (2026-05-20): all 51 files under `src/`, the 22 migrations, the `eval/` harness, and the API tests. Frontend: the dashboard view and the project hook, for stage-transition logic only. Repo docs: `README.md`, `PATTERNS.md`, `docs/DECISIONS.md`. One test was executed to confirm a finding. Nothing below is inferred from the repo's own descriptions where the code says otherwise.
+Backend source at commit `827bda2` (2026-05-20): all 51 files under `src/`, the 23 migrations (`000` through `022`), the `eval/` harness, and the API tests. Re-verified 2026-09-02 against `github.com/chintan-dshel/project-os` directly — `src/` is byte-for-byte identical to the local copy this chapter was originally read from. Frontend: the dashboard view and the project hook, for stage-transition logic only. Repo docs: `README.md`, `PATTERNS.md`, `docs/DECISIONS.md`. One test was executed to confirm a finding. Nothing below is inferred from the repo's own descriptions where the code says otherwise.
 :::
 
 ## What it does
@@ -189,7 +189,7 @@ The intake, planning, and retro agents validate the model's JSON and write phase
 
 ### Remove the confidence gate
 
-The intake agent produces a confidence score, and the original design blocked planning below 70. In use, a brief that honestly logged four assumptions scored 50 and was blocked, while a brief that logged nothing sailed through. The gate measured the wrong thing and was removed. The intake prompt now says the score is informational three separate times. The trade-off: the dead function and its header remained.
+The intake agent produces a confidence score, and the original design blocked planning below 70 — the intent was a self-reported check on how confident the model actually was in its own brief, not just whether the brief existed. In practice the score turned out to track how many assumptions the brief logged, not how good the brief was: a brief that was honest about what it didn't know scored itself lower than one that quietly assumed its way past the same unknowns. That's backwards — the honest brief is the one worth trusting — so the gate was removed rather than fixed. The intake prompt now says the score is informational three separate times. The trade-off: the dead function and its header remained, describing a check that no longer runs — the first item in Weaknesses, below.
 
 ### One hard gate, at the expensive boundary
 
@@ -287,6 +287,6 @@ Figure PO.5 shows why a regex on the user's message is not the perimeter.
 
 :::tip[My take]
 
-The most striking thing about this codebase is not any single bug — it's that the one gate the team built well (plan approval) and the two they skipped (planning, retro) sit in the same file, under the same dispatcher, described by the same style of header comment. Reading the file alone, all three look equally real. That's the actual lesson: a gate's presence in the code that calls it tells you nothing about whether it checks anything. The only way to know is to open the function. If I took one thing from this teardown into my own review habits, it would be that — grep for the gate, then read past the name to the return statement.
+The most striking thing about this codebase is not any single bug — it's that the one gate that actually checks something (plan approval) and the two that don't (planning, retro) sit in the same file, under the same dispatcher, described by the same style of header comment. Reading the file top to bottom, all three look equally real; the header on `gatePlanning` still describes a check its body no longer performs. These two were found the way most of this teardown's weaknesses were: not by one person reading line by line, but by running the code past several rounds of AI-assisted review, with different models and different prompts pointed at "does this function do what its name and comment claim." That's a slower, less flattering way to find your own bugs than trusting the file's structure — a gate dispatcher with three entries looks, at a glance, like three working gates — but it's the only way that actually catches the case where the code and its own documentation have quietly stopped agreeing.
 
 :::
