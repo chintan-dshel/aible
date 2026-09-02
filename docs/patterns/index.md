@@ -31,7 +31,7 @@ Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand 
 | 4 | [LLM-as-judge](./llm-as-judge) | If I ran this judge against twenty examples I've already scored myself, would it agree with me eight times out of ten? |
 | 5 | [QA pipelines](./qa-pipelines) | Can you name, for each reviewer, one category of defect the other reviewers would not have caught? |
 | 6 | [Cost-aware model routing](./cost-aware-model-routing) | For the last expensive call, can you say which rule sent it there and what it cost — both, for the same call? |
-| 7 | [Memory layers](./memory-layers) | *In progress* |
+| 7 | [Memory layers](./memory-layers) | For this memory, who can write to it, and separately, who can read a given entry back out? |
 | 8 | [Failure modes and attack surfaces](./failure-modes-and-attack-surfaces) | *In progress* |
 
 ## Reading the diagrams
