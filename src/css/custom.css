@@ -9,6 +9,7 @@
   --ifm-color-primary-lightest: #93c5fd;
   --ifm-code-font-size: 92%;
   --docusaurus-highlighted-code-line-bg: rgba(37, 99, 235, 0.08);
+  --ifm-container-width-xl: 1600px;
 }
 
 [data-theme='dark'] {
@@ -22,21 +23,65 @@
   --docusaurus-highlighted-code-line-bg: rgba(96, 165, 250, 0.12);
 }
 
-/* Slightly more breathing room in article body */
+/* Vertical rhythm. --ifm-leading must carry a unit: Infima reads it as a
+   length in calc() expressions used by every heading and paragraph margin.
+   An earlier unitless override (1.75) made every consumer resolve to 0 —
+   that was the root cause of headings sitting flush against body text. */
+:root {
+  --ifm-line-height-base: 1.7;
+}
 .markdown {
-  --ifm-leading: 1.75;
+  --ifm-leading: 1.5rem;
+  --ifm-h1-vertical-rhythm-bottom: 1;
+  --ifm-h2-vertical-rhythm-top: 2.2;
+  --ifm-h3-vertical-rhythm-top: 1.6;
+  --ifm-heading-vertical-rhythm-top: 1.3;
+  --ifm-heading-vertical-rhythm-bottom: 0.75;
+}
+.markdown > h2 {
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+/* A heading right after a figure needs more air than after a paragraph */
+.markdown .fig-caption + h2,
+.markdown .docusaurus-mermaid-container + h2 { margin-top: 3.75rem; }
+.markdown .fig-caption + h3,
+.markdown .docusaurus-mermaid-container + h3 { margin-top: 2.75rem; }
+.markdown .fig-caption + p { margin-top: 0; }
+
+/* Admonitions */
+.alert--success { border-left: 4px solid var(--ifm-color-primary); }        /* tip: My take */
+.alert--secondary { border-left: 4px solid var(--ifm-color-emphasis-500); } /* note */
+.alert--info { border-left: 4px solid var(--ifm-color-primary-light); }
+.alert--warning { border-left: 4px solid var(--dg-gate-line, #d97706); }
+.theme-admonition { border-radius: 8px; }
+
+/* Tables. Infima defaults to display:block + shrink-wrap, which floats a
+   short cell mid-row next to a long one and centres header text over a
+   left-aligned body. */
+:root { --ifm-table-cell-padding: 0.6rem 0.8rem; }
+.markdown table {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+  margin: 1.75rem 0 2rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+.markdown table th,
+.markdown table td { vertical-align: top; text-align: left; }
+.markdown table th { font-size: 0.8125rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.markdown table code { white-space: nowrap; }
+.markdown table td:first-child { white-space: nowrap; width: 1%; }
+@media (max-width: 768px) {
+  .markdown table { display: block; overflow-x: auto; }
 }
 
-/* "My take" tip callouts — distinct left border accent */
-.alert--success {
-  border-left: 4px solid var(--ifm-color-primary);
-}
-
-/* ── v2 diagram palette ────────────────────────────────────────────────────
-   Mermaid nodes in v2 chapters are tagged :::orch :::agent :::gate :::store
-   :::human :::external :::fail. Colours live here, not inside diagrams, so
-   light and dark both render and every figure shares one visual language.
-   Mermaid's own <style> is id-scoped, hence !important. */
+/* v2 diagram palette. Mermaid nodes in v2 chapters are tagged :::orch
+   :::agent :::gate :::store :::human :::external :::fail. Colours live
+   here, not inside diagrams, so light and dark both render and every
+   figure shares one visual language. Mermaid own <style> is id-scoped,
+   hence !important. */
 
 :root {
   --dg-orch-bg: #dbeafe;  --dg-orch-line: #2563eb;  --dg-orch-text: #1e3a8a;
@@ -46,6 +91,8 @@
   --dg-human-bg: #ffe4e6; --dg-human-line: #e11d48; --dg-human-text: #881337;
   --dg-ext-bg: #f3f4f6;   --dg-ext-line: #6b7280;   --dg-ext-text: #111827;
   --dg-fail-bg: #fee2e2;  --dg-fail-line: #dc2626;  --dg-fail-text: #7f1d1d;
+  --dg-fig-bg: #f8fafc;   --dg-fig-border: #e2e8f0;
+  --dg-edge: #475569;     --dg-label-text: #1e293b;
 }
 
 [data-theme='dark'] {
@@ -56,6 +103,8 @@
   --dg-human-bg: #881337; --dg-human-line: #fb7185; --dg-human-text: #ffe4e6;
   --dg-ext-bg: #1f2937;   --dg-ext-line: #9ca3af;   --dg-ext-text: #f3f4f6;
   --dg-fail-bg: #7f1d1d;  --dg-fail-line: #f87171;  --dg-fail-text: #fee2e2;
+  --dg-fig-bg: #16181d;   --dg-fig-border: #30363d;
+  --dg-edge: #9aa4b2;     --dg-label-text: #e6edf3;
 }
 
 .docusaurus-mermaid-container .node.orch rect,
@@ -107,13 +156,148 @@
 .docusaurus-mermaid-container .node.fail .nodeLabel,
 .docusaurus-mermaid-container .node.fail text { color: var(--dg-fail-text) !important; fill: var(--dg-fail-text) !important; }
 
-/* Figure captions sit directly under a diagram */
+/* Node label typography */
+.markdown .docusaurus-mermaid-container .nodeLabel,
+.markdown .docusaurus-mermaid-container .nodeLabel p {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+/* Edge labels: opaque chip so they never sit on top of an arrow */
+.markdown .docusaurus-mermaid-container .edgeLabel,
+.markdown .docusaurus-mermaid-container .edgeLabel p,
+.markdown .docusaurus-mermaid-container .edgeLabel span {
+  background-color: var(--dg-fig-bg) !important;
+  color: var(--dg-label-text) !important;
+  fill: var(--dg-label-text) !important;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.markdown .docusaurus-mermaid-container .edgeLabel rect,
+.markdown .docusaurus-mermaid-container .labelBkg,
+.markdown .docusaurus-mermaid-container .label-container {
+  fill: var(--dg-fig-bg) !important;
+  opacity: 1 !important;
+}
+
+/* Arrows */
+.markdown .docusaurus-mermaid-container .edgePath .path,
+.markdown .docusaurus-mermaid-container .flowchart-link,
+.markdown .docusaurus-mermaid-container .transition {
+  stroke: var(--dg-edge) !important;
+  stroke-width: 1.75px !important;
+}
+.markdown .docusaurus-mermaid-container .marker,
+.markdown .docusaurus-mermaid-container marker path {
+  fill: var(--dg-edge) !important;
+  stroke: var(--dg-edge) !important;
+}
+
+/* stateDiagram-v2 has no :::classes, style the renderer's own classes
+   directly so state machines match the flowchart palette */
+.markdown .docusaurus-mermaid-container .statediagram-state rect,
+.markdown .docusaurus-mermaid-container .statediagram-state .basic {
+  fill: var(--dg-orch-bg) !important;
+  stroke: var(--dg-orch-line) !important;
+  rx: 6; ry: 6;
+}
+.markdown .docusaurus-mermaid-container .statediagram-state .nodeLabel,
+.markdown .docusaurus-mermaid-container .statediagram-state text {
+  fill: var(--dg-orch-text) !important;
+  color: var(--dg-orch-text) !important;
+}
+.markdown .docusaurus-mermaid-container .node circle.state-start,
+.markdown .docusaurus-mermaid-container .node .state-end {
+  fill: var(--dg-edge) !important;
+  stroke: var(--dg-edge) !important;
+}
+
+/* sequenceDiagram: Mermaid has no class support here either */
+.markdown .docusaurus-mermaid-container .actor {
+  fill: var(--dg-orch-bg) !important;
+  stroke: var(--dg-orch-line) !important;
+}
+.markdown .docusaurus-mermaid-container text.actor > tspan {
+  fill: var(--dg-orch-text) !important;
+  font-size: 15px !important;
+  font-weight: 600;
+}
+.markdown .docusaurus-mermaid-container .actor-line { stroke: var(--dg-fig-border) !important; }
+.markdown .docusaurus-mermaid-container .messageText {
+  fill: var(--dg-label-text) !important;
+  font-size: 13px !important;
+}
+.markdown .docusaurus-mermaid-container .messageLine0,
+.markdown .docusaurus-mermaid-container .messageLine1 { stroke: var(--dg-edge) !important; }
+.markdown .docusaurus-mermaid-container .note {
+  fill: var(--dg-gate-bg) !important;
+  stroke: var(--dg-gate-line) !important;
+}
+.markdown .docusaurus-mermaid-container .noteText,
+.markdown .docusaurus-mermaid-container .noteText > tspan {
+  fill: var(--dg-gate-text) !important;
+  font-size: 13px !important;
+}
+
+/* Diagram container: centre, scroll on overflow, never shrink */
+.markdown .docusaurus-mermaid-container {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  background: var(--dg-fig-bg);
+  border: 1px solid var(--dg-fig-border);
+  border-radius: 10px;
+  padding: 1.5rem 1.25rem;
+  margin: 2.25rem 0 2.25rem;
+}
+.markdown .docusaurus-mermaid-container:has(+ .fig-caption) {
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  margin-bottom: 0;
+  padding-bottom: 1rem;
+}
+.markdown .docusaurus-mermaid-container > svg {
+  display: block;
+  margin-inline: auto;        /* centres when narrower than the column;
+                                  auto margins resolve to 0 when wider, so an
+                                  overflowing diagram is never left-clipped */
+  max-width: none !important; /* beats the theme module rule .container>svg{max-width:100%} */
+  height: auto;
+}
+/* Mermaid renders htmlLabels as <p> inside foreignObject; Infima
+   p{margin-bottom:...} would push node labels off-centre. */
+.docusaurus-mermaid-container p,
+.docusaurus-mermaid-container .nodeLabel,
+.docusaurus-mermaid-container .edgeLabel { margin: 0 !important; }
+
+/* Figure captions: a designed unit fused to the diagram card above them,
+   not a floating italic line. */
 .fig-caption {
-  font-size: 0.85rem;
-  font-style: italic;
-  opacity: 0.8;
+  background: var(--dg-fig-bg);
+  border: 1px solid var(--dg-fig-border);
+  border-top: 1px dashed var(--dg-fig-border);
+  border-radius: 0 0 10px 10px;
+  font-size: 0.875rem;
+  font-style: normal;
+  line-height: 1.55;
   text-align: center;
-  margin: -0.5rem 0 1.75rem;
+  color: var(--ifm-color-emphasis-700);
+  opacity: 1;
+  max-width: 62ch;
+  margin: 0 auto 2.5rem;
+  padding: 0.8rem 1.5rem 0.9rem;
+}
+.fig-caption strong {
+  color: var(--ifm-color-emphasis-900);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 /* Inline legend swatches used on the Part 1 index */

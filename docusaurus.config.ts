@@ -104,6 +104,49 @@ const config: Config = {
     },
     mermaid: {
       theme: {light: 'neutral', dark: 'dark'},
+      options: {
+        fontFamily:
+          'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        fontSize: 16,
+        themeVariables: {
+          fontSize: '16px',
+          fontFamily:
+            'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        },
+        flowchart: {
+          useMaxWidth: false,
+          htmlLabels: true,
+          curve: 'basis',
+          nodeSpacing: 55,
+          rankSpacing: 75,
+          padding: 14,
+          diagramPadding: 12,
+          wrappingWidth: 220,
+        },
+        sequence: {
+          useMaxWidth: false,
+          wrap: true,
+          width: 170,
+          height: 48,
+          actorMargin: 55,
+          boxMargin: 12,
+          messageMargin: 38,
+          mirrorActors: false,
+          diagramMarginX: 24,
+          diagramMarginY: 14,
+          actorFontSize: 15,
+          messageFontSize: 13,
+          noteFontSize: 13,
+          wrapPadding: 12,
+        },
+        state: {
+          useMaxWidth: false,
+          nodeSpacing: 55,
+          rankSpacing: 75,
+          padding: 14,
+          titleTopMargin: 12,
+        },
+      },
     },
   } satisfies Preset.ThemeConfig,
 };

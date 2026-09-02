@@ -24,4 +24,4 @@ Every claim comes from reading the source at a named commit. Anything inferred r
 | 9 | [ProjectOS](./projectos) | Stage-gated multi-agent project manager with a production LLM judge | Stage gates, state machines, LLM-as-judge, model routing |
 | 10 | Lyceum | AI university simulator with a multi-phase QA pipeline and multi-model routing | *In progress* |
 | 11 | Second Brain | Persistent memory layer plus a RAG demo | *In progress* |
-| 12 | Aible | The multi-agent authoring pipeline that produced the Part 3 reference pages | *In progress* |
+| 12 | Aible | The multi-agent authoring pipeline that produced this site's reference library | *In progress* |
