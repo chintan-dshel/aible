@@ -29,7 +29,7 @@ Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand 
 | 2 | [Stage gates](./stage-gates) | Ask: if this gate fails on a real run tomorrow, what happens next, and who finds out? |
 | 3 | [State machines](./state-machines) | Grep the codebase for every place this state gets written — do they all call the same function? |
 | 4 | [LLM-as-judge](./llm-as-judge) | If I ran this judge against twenty examples I've already scored myself, would it agree with me eight times out of ten? |
-| 5 | [QA pipelines](./qa-pipelines) | *In progress* |
+| 5 | [QA pipelines](./qa-pipelines) | Can you name, for each reviewer, one category of defect the other reviewers would not have caught? |
 | 6 | [Cost-aware model routing](./cost-aware-model-routing) | *In progress* |
 | 7 | [Memory layers](./memory-layers) | *In progress* |
 | 8 | [Failure modes and attack surfaces](./failure-modes-and-attack-surfaces) | *In progress* |
