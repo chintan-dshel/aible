@@ -54,7 +54,7 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 5.2</strong> — Three reviewers, one draft, no reviewer sees the others' output. A person reconciles all three lists before anything changes.</p>
 
-Three things make this a pipeline and not just three separate reviews happening near each other. First, the lenses genuinely don't overlap — in the review process this book itself went through, that was a technical-accuracy lens, a pedagogical lens, and a security lens, chosen specifically because a factual error, a comprehension gap, and an injection vector are different kinds of defect that don't show up to the same reader. Second, the reviewers don't see each other's output — each one reads the same draft cold, so their disagreements are real signal, not one reviewer anchoring on another's framing. Third, and this is the part that actually makes the pipeline work rather than just make noise: a person reconciles all three lists into three buckets — apply now, defer, or reject — instead of applying everything a reviewer suggested.
+Three things make this a pipeline and not just three separate reviews happening near each other. First, the lenses genuinely don't overlap — in the review process this book itself went through, that was a technical-accuracy lens, a pedagogical lens, and a security lens, chosen specifically because a factual error, a comprehension gap, and an injection vector — a hidden instruction planted in the input that tricks the model into doing something it shouldn't — are different kinds of defect that don't show up to the same reader. Second, the reviewers don't see each other's output — each one reads the same draft cold, so their disagreements are real signal, not one reviewer anchoring on another's framing. Third, and this is the part that actually makes the pipeline work rather than just make noise: a person reconciles all three lists into three buckets — apply now, defer, or reject — instead of applying everything a reviewer suggested.
 
 That third part matters more than it sounds like it should. Reviewers, especially the ones optimizing for clarity or completeness, will find an unbounded number of things to improve — every page can always be a little clearer, every example can always have one more caveat. Applying all of it doesn't converge on a better page, it converges on a longer one. The gate isn't there to catch reviewer mistakes; the reviewers are usually right about the specific thing they flagged. It's there because "right about this one thing" and "worth changing right now" are different questions, and only a person weighing the whole draft can answer the second one.
 
@@ -70,7 +70,7 @@ That third part matters more than it sounds like it should. Reviewers, especiall
 
 - One good reviewer already catches what you care about. Three lenses for a one-paragraph change is review theater, not quality control.
 - Nobody has time to reconcile the output. Three lists of flagged items that nobody triages is worse than one list, because now the unaddressed backlog is three times as long and looks like it was handled.
-- The draft changes fast enough that review can't keep up. A pipeline built for a document that's revised once a week doesn't fit a system generating new output every request — that's chapter 4's territory, a sampled judge, not a full review pass.
+- The draft changes fast enough that review can't keep up. A pipeline built for a document that's revised once a week doesn't fit a system generating new output every request — that's chapter 4's territory, a sampled judge — a second AI call that grades only a random slice of the output, not all of it — not a full review pass.
 
 ### The test
 
@@ -84,7 +84,7 @@ Left unconstrained, a reviewer optimizing for any single quality dimension will 
 
 ### Deferred items disappearing
 
-A long session runs, review happens, some flagged items get deferred rather than applied — and if the deferred list only exists in the conversation, it's gone the moment that conversation is compressed or ends. This book's own authoring process learned this the hard way: writing deferred items to a durable file at review time, not at phase close, is what survives a session ending early. An applied change is recoverable from a diff; a deferred idea that only lived in chat history is not.
+A long session runs, review happens, some flagged items get deferred rather than applied — and if the deferred list only exists in the conversation, it's gone the moment that conversation is compressed — older turns automatically summarized away to make room — or ends. This book's own authoring process learned this the hard way: writing deferred items to a durable file at review time, not at phase close, is what survives a session ending early. An applied change is recoverable from a diff — the record of exactly what changed between two versions of a file; a deferred idea that only lived in chat history is not.
 
 ### Reviewers with no memory reviewing the same thing twice
 
