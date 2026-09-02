@@ -32,7 +32,7 @@ Two numbers worth having before chapter 1: a Sonnet-tier call at a few thousand 
 | 5 | [QA pipelines](./qa-pipelines) | Can you name, for each reviewer, one category of defect the other reviewers would not have caught? |
 | 6 | [Cost-aware model routing](./cost-aware-model-routing) | For the last expensive call, can you say which rule sent it there and what it cost — both, for the same call? |
 | 7 | [Memory layers](./memory-layers) | For this memory, who can write to it, and separately, who can read a given entry back out? |
-| 8 | [Failure modes and attack surfaces](./failure-modes-and-attack-surfaces) | *In progress* |
+| 8 | [Failure modes and attack surfaces](./failure-modes-and-attack-surfaces) | For every place this system writes content a future prompt might read, was that write ever checked the way a live user message is? |
 
 ## Reading the diagrams
 
