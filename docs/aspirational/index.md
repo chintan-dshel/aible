@@ -1,15 +1,15 @@
 ---
 sidebar_position: 1
-title: 'Reference: Frontier'
-sidebar_label: 'Reference: Frontier'
+title: The Frontier
+sidebar_label: The Frontier
 description: Where AI is heading — agentic computer use, world models, multimodal frontiers, on-device AI, and safety research.
 ---
 
-# Reference: Frontier
+# The Frontier
 
 This section covers what's emerging or not yet production-ready: the directions the field is actively pushing toward. Confidence levels are lower here by design — the field hasn't settled on answers, and I'll say so explicitly.
 
-One page that lives here, [Long-Horizon Agents](./long-horizon-agents), is *listed* under [Building Blocks](../core-building-blocks/) in the sidebar instead. It is not speculative — checkpointing and human-in-the-loop gates are load-bearing patterns in every teardown in Part 2 — so filing it under "frontier" undersold it. The file has not moved; only where it appears in navigation has.
+One page that lives here, [Long-Horizon Agents](./long-horizon-agents), is *listed* under [Agentic Building Blocks](../core-building-blocks/) in the sidebar instead. It is not speculative — checkpointing and human-in-the-loop gates are load-bearing patterns in every teardown — so filing it under "frontier" undersold it. The file has not moved; only where it appears in navigation has.
 
 ## Reading order — a coherent narrative
 

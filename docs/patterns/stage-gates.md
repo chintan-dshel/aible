@@ -2,7 +2,7 @@
 sidebar_position: 2
 sidebar_label: 2. Stage gates
 title: Stage gates
-description: A gate is a checkpoint between two phases where output is verified before the next phase spends money or takes an irreversible action. The gate is the unit of control in every system in Part 2.
+description: A gate is a checkpoint between two phases where output is verified before the next phase spends money or takes an irreversible action. The gate is the unit of control in every teardown in this book.
 ---
 
 # Stage gates
@@ -189,9 +189,9 @@ The human gate fires so often, or shows so much, that the person stops reading. 
 ## Where it shows up in the teardowns
 
 - **[ProjectOS](../teardowns/projectos)** designed three gates and shipped one. The live gate is a human approval that flips a boolean inside a transaction and writes a decision log — see [The gates](../teardowns/projectos#the-gates). The other two are functions that return without checking anything, while the file header still describes them as active: see [The gate that isn't there](#the-gate-that-isnt-there) above. The milestone-completion check that should be a gate lives in a UI button — [Client-side gate](#client-side-gate). This is the chapter's cautionary example and its best example in the same codebase.
-- **Lyceum** runs generated course content through a four-phase QA pipeline where each phase gates the next. Chapter 10 reads the source.
-- **Second Brain** has a human gate at ingest: existing articles are shown as a diff before they are updated, and nothing enters the wiki without that view. Chapter 11.
-- **Aible** itself was written through a human gate between three parallel reviewers and the fix pass. The gate existed because the reviewers over-flagged, and the person deciding what to apply was the only thing keeping the pages from doubling in length. Chapter 12.
+- **[Lyceum](../teardowns/lyceum)** runs generated course content through a four-phase QA pipeline where each phase gates the next before it reaches a student.
+- **[Second Brain](../teardowns/second-brain)** gates at ingest: existing articles are shown as a diff before they're updated, and nothing lands in the wiki without a person looking at that diff.
+- **[Aible](../teardowns/aible)** — this site — was written through a human gate between three parallel reviewers and the fix pass. The reviewers over-flag badly; the gate is a person deciding what to apply, and it's the only reason these pages aren't twice as long.
 
 :::tip[My take]
 

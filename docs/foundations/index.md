@@ -1,20 +1,20 @@
 ---
 sidebar_position: 1
-title: Foundations
-sidebar_label: Foundations
+title: AI Foundations
+sidebar_label: AI Foundations
 description: What AI and ML actually are under the hood — the concepts everything else builds on.
 ---
 
-# Foundations
+# AI Foundations
 
 Before frameworks, APIs, or products: what is actually happening when a model generates text, classifies an image, or finds a nearest neighbor? This section builds the mental model from first principles.
 
-Only one page here is assumed later in the book: [How LLMs Work](./how-llms-work). Read that one, then read as much or as little of the rest as you want — Part 1 does not require it. The two history pages are context, not mechanism; they are ordered last on purpose.
+Only one page here is assumed later in the book: [How LLMs Work](./how-llms-work). Read that one, then read as much or as little of the rest as you want — the patterns chapters do not require the rest. The two history pages are context, not mechanism; they are ordered last on purpose.
 
 ## Reading order
 
 **The one page this book assumes:**
-[How LLMs Work](./how-llms-work) — the end-to-end pipeline, text in to tokens out. If you've never called an LLM API, start here before Part 1.
+[How LLMs Work](./how-llms-work) — the end-to-end pipeline, text in to tokens out. If you've never called an LLM API, start here before the patterns chapters.
 
 **If you want the full mechanism, in order:**
 [What is AI?](./what-is-ai) → [How LLMs Work](./how-llms-work) → [Neural Networks](./neural-networks) → [Transformers](./transformers) → [Attention Mechanism](./attention) → [Embeddings](./embeddings) → [Tokenization](./tokenization) → [Training vs Inference](./training-vs-inference)

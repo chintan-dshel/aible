@@ -5,8 +5,8 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
-  title: 'Aible',
-  tagline: 'A personal AI reference — foundations to frontier.',
+  title: 'Agentic Systems',
+  tagline: 'How to design a multi-agent AI system — patterns, teardowns of systems I built, and the AI reference underneath.',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -78,13 +78,28 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'Aible',
+      title: 'Agentic Systems',
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'mainSidebar',
+          type: 'dropdown',
+          label: 'The Book',
           position: 'left',
+          items: [
+            {to: '/docs/patterns/', label: 'Agentic Architecture Patterns'},
+            {to: '/docs/teardowns/', label: 'Teardowns: Systems I Built'},
+          ],
+        },
+        {
+          type: 'dropdown',
           label: 'Reference',
+          position: 'left',
+          items: [
+            {to: '/docs/foundations/', label: 'AI Foundations'},
+            {to: '/docs/core-building-blocks/', label: 'Agentic Building Blocks'},
+            {to: '/docs/meta-infrastructure/', label: 'Infrastructure and Tooling'},
+            {to: '/docs/production-concerns/', label: 'Running in Production'},
+            {to: '/docs/aspirational/', label: 'The Frontier'},
+          ],
         },
         {
           to: '/docs/glossary',
@@ -95,7 +110,7 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
-      copyright: `Personal AI reference. Built with Docusaurus.`,
+      copyright: `Agentic Systems: Patterns and Teardowns. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

@@ -17,22 +17,44 @@ export default function Home(): ReactNode {
           padding: '2rem',
           textAlign: 'center',
         }}>
-        <h1 style={{fontSize: '3rem', marginBottom: '0.5rem'}}>Aible</h1>
+        <h1 style={{fontSize: '3rem', marginBottom: '0.25rem'}}>Agentic Systems</h1>
         <p
           style={{
-            fontSize: '1.2rem',
+            fontSize: '1.4rem',
+            fontWeight: 600,
+            marginBottom: '1.25rem',
+            opacity: 0.9,
+          }}>
+          Patterns and Teardowns
+        </p>
+        <p
+          style={{
+            fontSize: '1.1rem',
+            maxWidth: '620px',
+            marginBottom: '0.75rem',
+            opacity: 0.85,
+          }}>
+          A short book on how to design a multi-agent AI system: eight design
+          decisions you will hit in any of them, and teardowns of systems I
+          built and run, read from their own source code.
+        </p>
+        <p
+          style={{
+            fontSize: '1rem',
             maxWidth: '580px',
             marginBottom: '2rem',
-            opacity: 0.8,
+            opacity: 0.65,
           }}>
-          {siteConfig.tagline}
+          For engineers and technical PMs who have never designed a multi-agent
+          system and are about to. Underneath it sits a 45-page AI reference
+          library, foundations to frontier.
         </p>
         <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center'}}>
           <Link className="button button--primary button--lg" to="/docs/intro">
-            Start reading →
+            Start the book →
           </Link>
           <Link className="button button--secondary button--lg" to="/docs/foundations/">
-            Jump to Foundations
+            Browse the reference library
           </Link>
         </div>
       </main>

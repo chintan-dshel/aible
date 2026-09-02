@@ -1,24 +1,24 @@
 ---
 sidebar_position: 1
-title: Building Blocks
-sidebar_label: Building Blocks
-description: The primitives you combine to build AI applications — prompting, RAG, tool use, agents, memory, and the two pages that lead directly into Part 1.
+title: Agentic Building Blocks
+sidebar_label: Agentic Building Blocks
+description: The primitives you combine to build AI applications — prompting, RAG, tool use, agents, memory, and the two pages that lead directly into the patterns chapters.
 ---
 
-# Building Blocks
+# Agentic Building Blocks
 
-Foundations explained what language models are and how they work. This section covers what you build with them: the primitives that appear in almost every production AI system, ending with the two pages that lead directly into Part 1 — Patterns.
+AI Foundations explained what language models are and how they work. This section covers what you build with them: the primitives that appear in almost every production AI system, ending with the two pages that lead directly into Agentic Architecture Patterns.
 
 Each page follows the same pattern — what it is, when to use it, how it works, and where it breaks. The pages cross-reference each other because the building blocks compose: RAG feeds context into prompts; tool use produces structured outputs; multi-agent systems orchestrate all of the above.
 
-Two pages here are cross-listed from elsewhere in the reference library because they are prerequisite tooling for Part 1, not reference material to look up later: [Orchestration Frameworks](../meta-infrastructure/orchestration-frameworks) (the tooling for the multi-agent topologies on this page) and [Long-Horizon Agents](../aspirational/long-horizon-agents) (checkpointing and human-in-the-loop gates — the most directly applicable page in the whole book, despite its folder).
+Two pages here are cross-listed from elsewhere in the reference library because they are prerequisite tooling for the patterns chapters, not reference material to look up later: [Orchestration Frameworks](../meta-infrastructure/orchestration-frameworks) (the tooling for the multi-agent topologies on this page) and [Long-Horizon Agents](../aspirational/long-horizon-agents) (checkpointing and human-in-the-loop gates — the most directly applicable page in the whole book, despite its folder).
 
 ## Reading order
 
 **If you're new to building with LLMs:**
 [Prompting](./prompting) → [Structured Outputs](./structured-outputs) → [Function Calling](./function-calling) → [RAG](./rag)
 
-**If you're headed into Part 1 — Patterns:**
+**If you're headed into Agentic Architecture Patterns:**
 [Function Calling](./function-calling) → [Multi-Agent Systems](./multi-agent-systems) → [Orchestration Frameworks](../meta-infrastructure/orchestration-frameworks) → [Memory Architectures](./memory-architectures) → [Long-Horizon Agents](../aspirational/long-horizon-agents)
 
 **If you're building with AI APIs right now and skipping the book:**

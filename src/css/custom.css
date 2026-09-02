@@ -156,38 +156,39 @@
 .docusaurus-mermaid-container .node.fail .nodeLabel,
 .docusaurus-mermaid-container .node.fail text { color: var(--dg-fail-text) !important; fill: var(--dg-fail-text) !important; }
 
-/* Node label typography */
+/* Node and edge label colour ONLY -- never size, padding, or line-height.
+   Mermaid measures every label's box at render time using the font size
+   set in docusaurus.config.ts (mermaid.options), then fixes the SVG
+   foreignObject to that measured size. A CSS rule that changes font-size,
+   line-height, or adds padding after the fact makes the text taller or
+   wider than the box Mermaid already allocated for it -- multi-line edge
+   labels ("40-task plan built / on the vague brief") were overflowing
+   their box and getting clipped this way, once per nesting level
+   (.edgeLabel, its child <p>, its child <span> each added their own
+   padding). Colour-only overrides are safe because they never change
+   box geometry. See CLAUDE.md, "Never restyle Mermaid label typography." */
 .markdown .docusaurus-mermaid-container .nodeLabel,
-.markdown .docusaurus-mermaid-container .nodeLabel p {
-  font-size: 0.9375rem;
-  line-height: 1.35;
-  font-weight: 500;
-}
-
-/* Edge labels: opaque chip so they never sit on top of an arrow */
 .markdown .docusaurus-mermaid-container .edgeLabel,
 .markdown .docusaurus-mermaid-container .edgeLabel p,
 .markdown .docusaurus-mermaid-container .edgeLabel span {
-  background-color: var(--dg-fig-bg) !important;
   color: var(--dg-label-text) !important;
   fill: var(--dg-label-text) !important;
-  font-size: 0.8125rem;
-  line-height: 1.3;
-  padding: 1px 5px;
-  border-radius: 4px;
 }
-/* Do NOT force opacity here: Mermaid intentionally renders a near-zero-
-   opacity background rect for edges with no text label (self-loops,
-   unlabeled returns) so it's invisible. Forcing opacity:1 made every one
-   of those empty backgrounds visible as a faint ghost rectangle. Fill
-   colour only; Mermaid's own opacity value is left alone. */
+/* The "opaque chip so an edge label never sits on top of an arrow" look
+   comes entirely from the SVG background rect below, which Mermaid sizes
+   itself to fit its own text -- not from CSS padding on the text. */
 .markdown .docusaurus-mermaid-container .edgeLabel rect,
 .markdown .docusaurus-mermaid-container .labelBkg,
 .markdown .docusaurus-mermaid-container .label-container {
   fill: var(--dg-fig-bg) !important;
 }
-/* But an empty label's <p>/<span> text wrapper has no size to leak
-   through, so it is safe to always suppress. */
+/* Do NOT force opacity on the rule above: Mermaid intentionally renders a
+   near-zero-opacity background rect for edges with no text label
+   (self-loops, unlabeled returns) so it's invisible. An earlier version
+   forced opacity:1 and made every one of those empty backgrounds visible
+   as a faint ghost rectangle -- fill colour only, Mermaid's own opacity
+   value is left alone, and an empty label's text wrapper is suppressed
+   directly instead. */
 .markdown .docusaurus-mermaid-container .edgeLabel:empty {
   background: transparent !important;
 }

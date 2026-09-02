@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-sidebar_label: 9. ProjectOS
+sidebar_label: ProjectOS
 title: 'Teardown: ProjectOS'
 description: A stage-gated, four-agent project manager for solo founders, with a production LLM judge that grows its own golden dataset. Read from source and taken apart.
 ---
@@ -51,9 +51,9 @@ flowchart TB
   AG <--> DB
 ```
 
-<p className="fig-caption"><strong>Figure 9.1</strong> — One path to the model. Every message passes a fixed middleware chain, one gate, and one orchestrator before reaching the agent for the current stage.</p>
+<p className="fig-caption"><strong>Figure PO.1</strong> — One path to the model. Every message passes a fixed middleware chain, one gate, and one orchestrator before reaching the agent for the current stage.</p>
 
-Figure 9.1 has one property worth naming first: there is exactly one path to the model. Every agent, the judge, the specialist agents, and the report generator call `callClaude()` in `src/lib/anthropic.js`. That function writes a trace row with tokens, latency, model, and USD cost, and with a 15% probability spawns a judge call on the response. Because there is one gateway, there is one place where telemetry, cost, and quality sampling are guaranteed to happen.
+Figure PO.1 has one property worth naming first: there is exactly one path to the model. Every agent, the judge, the specialist agents, and the report generator call `callClaude()` in `src/lib/anthropic.js`. That function writes a trace row with tokens, latency, model, and USD cost, and with a 15% probability spawns a judge call on the response. Because there is one gateway, there is one place where telemetry, cost, and quality sampling are guaranteed to happen.
 
 The other components, with their files:
 
@@ -86,9 +86,9 @@ stateDiagram-v2
   complete --> [*]
 ```
 
-<p className="fig-caption"><strong>Figure 9.2</strong> — The stage machine, labeled by who decides each transition. Four different authorities move the project: code, a person, a model, and a UI button.</p>
+<p className="fig-caption"><strong>Figure PO.2</strong> — The stage machine, labeled by who decides each transition. Four different authorities move the project: code, a person, a model, and a UI button.</p>
 
-Figure 9.2 is the most important diagram in this chapter. The stage column is the system's state machine, and it is well designed: one column, an enum type, a single lookup from stage to agent. But four different authorities are allowed to change it.
+Figure PO.2 is the most important diagram in this chapter. The stage column is the system's state machine, and it is well designed: one column, an enum type, a single lookup from stage to agent. But four different authorities are allowed to change it.
 
 - **Code** moves the project from `intake` to `planning`, and from `planning` to `awaiting_approval`. The agent module validates the model's JSON and then writes the new stage in the same transaction as the brief or plan. This is the right shape.
 - **A person** moves the project from `awaiting_approval` to `execution` through `PUT /projects/:id/approve`. The handler requires `confirmed` to be exactly `true`, updates the stage with a `WHERE stage = 'awaiting_approval'` guard so a concurrent approval fails cleanly, and writes a decision-log row in the same transaction. If `confirmed` is absent it returns a plan summary instead. This is a textbook human gate.
@@ -143,9 +143,9 @@ sequenceDiagram
   Note over C,D: callClaude writes agent_traces on<br/>every call, samples 15% for the judge
 ```
 
-<p className="fig-caption"><strong>Figure 9.3</strong> — One message, end to end. Note that both the agent and the route can set the stage, and that the knowledge fetch happens before the prompt is built.</p>
+<p className="fig-caption"><strong>Figure PO.3</strong> — One message, end to end. Note that both the agent and the route can set the stage, and that the knowledge fetch happens before the prompt is built.</p>
 
-Two things in Figure 9.3 matter for the rest of the chapter. First, the stage is written in two places: the agent writes it inside its transaction, and the route writes it again afterwards if the agent's `advance_stage` is a valid enum value. Second, knowledge entries are fetched by full-text match against the project title and problem statement and pasted into the system prompt under the heading "PAST LEARNINGS FROM THIS ORG — apply these when building the plan."
+Two things in Figure PO.3 matter for the rest of the chapter. First, the stage is written in two places: the agent writes it inside its transaction, and the route writes it again afterwards if the agent's `advance_stage` is a valid enum value. Second, knowledge entries are fetched by full-text match against the project title and problem statement and pasted into the system prompt under the heading "PAST LEARNINGS FROM THIS ORG — apply these when building the plan."
 
 ### The judge and the golden set
 
@@ -169,9 +169,9 @@ flowchart TB
   X -- "any fail" --> NO["exit 1<br/>deploy blocked"]:::fail
 ```
 
-<p className="fig-caption"><strong>Figure 9.4</strong> — The golden-set loop. Production traffic feeds the golden dataset: high-scoring live responses become candidates, a person promotes them, and the golden run gates CI on them.</p>
+<p className="fig-caption"><strong>Figure PO.4</strong> — The golden-set loop. Production traffic feeds the golden dataset: high-scoring live responses become candidates, a person promotes them, and the golden run gates CI on them.</p>
 
-Figure 9.4 is the system's most distinctive design. There are three eval layers:
+Figure PO.4 is the system's most distinctive design. There are three eval layers:
 
 1. **Structural assertions** (`eval/run.js`). Fixtures end with a confirmation message so the agent always emits JSON. Assertions check shape and business rules: tasks between one and three hours, at least three success criteria, a scope-creep fixture must produce a change request. No judge cost.
 2. **Production judge** (`src/lib/judge.js`). Fifteen percent of live calls are scored by a second Claude call against a per-agent rubric of four named dimensions plus an overall score. The rubric asks about specific failure modes ("did the agent probe 'done' claims or accept them?") rather than general quality. Scores, breakdown, cost, and rubric version are stored per trace. The judge is excluded from being judged by a guard on its own agent name.
@@ -185,7 +185,7 @@ Figure 9.4 is the system's most distinctive design. There are three eval layers:
 
 ### Agents write their own rows
 
-The intake, planning, and retro agents validate the model's JSON and write phases, tasks, risks, and the new stage inside one transaction. The alternative, returning JSON to the route and letting it write, would centralize the state change. The chosen design keeps validation and write together, at the cost of the double-write of `stage` seen in Figure 9.3.
+The intake, planning, and retro agents validate the model's JSON and write phases, tasks, risks, and the new stage inside one transaction. The alternative, returning JSON to the route and letting it write, would centralize the state change. The chosen design keeps validation and write together, at the cost of the double-write of `stage` seen in Figure PO.3.
 
 ### Remove the confidence gate
 
@@ -258,9 +258,9 @@ flowchart TB
   A4["POST /transition<br/>any of 4 targets"]:::external --> ST
 ```
 
-<p className="fig-caption"><strong>Figure 9.5</strong> — Attack surface. The regex guards one input path. Two others reach the system prompt or the stage column without passing it.</p>
+<p className="fig-caption"><strong>Figure PO.5</strong> — Attack surface. The regex guards one input path. Two others reach the system prompt or the stage column without passing it.</p>
 
-Figure 9.5 shows why a regex on the user's message is not the perimeter.
+Figure PO.5 shows why a regex on the user's message is not the perimeter.
 
 **Indirect injection through the knowledge hub.** An entry posted to `/knowledge` is not run through the injection regex; only `message`, `content`, `brief`, and `additional_brief` fields on specific routes are. The entry's content is later pasted into the planning agent's system prompt under an instruction to apply it. Because the hub is not scoped by user, this crosses tenants: one user's entry can shape another user's plan. The same path exists second-hand through retros, where the model paraphrases the founder's answers into hub entries, which defeats a phrase-matching filter by construction.
 

@@ -93,7 +93,7 @@ The orchestrated version is a dictionary lookup wearing a design pattern's cloth
 
 - Different parts of the task genuinely need different context, tools, or model tiers — not "this feels complex," but a specific reason a specialized agent does that one part better.
 - The routing decision itself is enumerable: a stage, an intent category, a task type. If you can draw the lookup table, you can code the lookup table.
-- You want the reliability of a workflow with the specialization benefit of separate agents. This is most of Part 2's teardowns.
+- You want the reliability of a workflow with the specialization benefit of separate agents. This is most of the teardowns in this book.
 
 ### Use an autonomous loop when
 
@@ -125,9 +125,9 @@ A loop is approved because "it'll probably take two or three steps." Nothing enf
 
 ## Where it shows up in the teardowns
 
-- **[ProjectOS](../teardowns/projectos)** sits at the orchestrated-workflow end on purpose. `STAGE_AGENT` in `src/lib/agents.js` is a seven-entry lookup table with no loop anywhere in the routing path — see [Figure 9.1](../teardowns/projectos#architecture) and [Figure 9.2](../teardowns/projectos#control-flow). Nothing in the system decides to call itself; the closest thing to autonomy is the retro agent choosing a value for `advance_stage`, and even that write is a single field on a single call, not an iteration.
-- **Lyceum** runs a bounded multi-phase pipeline rather than an open loop. Chapter 10 reads the source.
-- **Second Brain** and **Aible** are both closer to fixed workflows than to autonomous loops — a retrieval-then-synthesis pipeline and a phased authoring pipeline, respectively. Chapters 11 and 12.
+- **[ProjectOS](../teardowns/projectos)** sits at the orchestrated-workflow end on purpose. `STAGE_AGENT` in `src/lib/agents.js` is a seven-entry lookup table with no loop anywhere in the routing path — see [Figure PO.1](../teardowns/projectos#architecture) and [Figure PO.2](../teardowns/projectos#control-flow). Nothing in the system decides to call itself; the closest thing to autonomy is the retro agent choosing a value for `advance_stage`, and even that write is a single field on a single call, not an iteration.
+- **[Lyceum](../teardowns/lyceum)** runs a bounded multi-phase pipeline rather than an open loop.
+- **[Second Brain](../teardowns/second-brain)** and **[Aible](../teardowns/aible)** are both closer to fixed workflows than to autonomous loops — a retrieval-then-synthesis pipeline and a phased authoring pipeline, respectively.
 
 :::tip[My take]
 
