@@ -111,7 +111,7 @@ flowchart TB
 
 The three checkers in Figure 2.3 are not alternatives. They layer. A rule gate is free and deterministic, so it runs first and rejects anything malformed before a model or a person ever sees it. A judge gate costs a model call and catches things a schema cannot: a plan that is valid JSON but assigns forty hours of work to a ten-hour week. Chapter 4 is about how to build one that you can trust. A human gate is the slowest and the only one that can catch a mismatch between what the system produced and what the person actually wanted.
 
-The mistake is to skip the cheap layers and put a person on everything. People approve what they are shown too often to see, so a human gate that fires on every turn becomes a rubber stamp within a week. Chapter 5 is about keeping the human gate rare enough to mean something.
+The mistake is to skip the cheap layers and put a person on everything. People stop reading what they are shown too often to see, and a human gate that fires on every turn eventually gets approved without being read at all — I don't have a clean number for how fast that happens, only that it does. Chapter 5 is about keeping the human gate rare enough to mean something.
 
 ```mermaid
 ---
