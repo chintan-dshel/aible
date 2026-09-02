@@ -1,7 +1,9 @@
 # Aible v2 — Phase 0 Audit and Plan
 
 Title: *Agentic Systems: Patterns and Teardowns* (decided at Phase 0 review).
-Branch: `aible-v2`. Status: Phase 0, Phase 1, and Phase 2 all complete as of 2026-09-02. **Part 1 — Agentic Architecture Patterns is fully written, all 8 chapters.** Stopped here per the plan's own phase gate, awaiting direction on Phase 3.
+Branch: `aible-v2`. Status: Phase 0, Phase 1, and Phase 2 all complete. Phase 3 (teardowns) revised in scope and now complete: **ProjectOS, Lyceum, and Second Brain are all written; the Aible teardown was dropped entirely per the author's explicit decision** (v1's own authoring pipeline has no surviving code or prompts to read from source, and the author judged it not worth a `[VERIFY]`-heavy chapter built mostly from documentation). Second Brain is a shorter case study rather than the full 8-section shape, also per the author's decision, since most of what runs it is instructions re-read by a live session rather than application code.
+
+An accessibility pass (docs/STYLE.md's Accessibility rubric — technical terms glossed at first use per page, mechanism preceded by plain restatement, no bare notation) has been run across all 8 Part 1 chapters plus intro/index, and across the ProjectOS teardown, using the fresh-reviewer-plus-human-comparison gate described in that section below. Lyceum and Second Brain were written with both rubrics (voice + accessibility) applied from the start, so they didn't need a retrofit pass. **Next: the same accessibility gate across the ~45-page reference library, by section (Foundations ~10, Building Blocks ~6, Infrastructure ~19, Production ~6, Frontier ~7), each broken into sub-batches.**
 
 Decisions taken at Phase 0 review: D1 sidebar-only reorganisation, v1 URLs unchanged. D2 repo paths as listed. D3 question list before Phase 3. D4 title above. D5 v1 diagrams untouched.
 
