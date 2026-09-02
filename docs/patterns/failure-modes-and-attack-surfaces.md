@@ -7,9 +7,9 @@ description: Prompt injection direct and indirect, tool misuse, runaway loops, a
 
 # Failure modes and attack surfaces
 
-This chapter doesn't introduce a new pattern. It overlays a question onto every diagram the last seven chapters already drew: where does untrusted input enter this pipeline, and what can it reach from there? Chapter 2's gates, chapter 3's stored state, chapter 4's judge, chapter 6's routing, chapter 7's memory scope — each one is also a specific point where a defense either exists or doesn't, and a system's real attack surface is the sum of every point where it doesn't.
+This chapter doesn't introduce a new pattern. It overlays a question onto every diagram the last seven chapters already drew: where does untrusted input enter this pipeline, and what can it reach from there? Chapter 2's gates (checks that decide whether output is good enough to pass), chapter 3's stored state, chapter 4's judge (a second model call that scores another model's output), chapter 6's routing, chapter 7's memory scope — each one is also a specific point where a defense either exists or doesn't, and a system's real attack surface is the sum of every point where it doesn't.
 
-The single most common mistake in this chapter's subject is treating "the user's message" as the attack surface, defending it well, and stopping there. ProjectOS does exactly this: a regex block-list on the message field, returning a 403 on an obvious injection attempt. It's a real defense, at a real entry point. It's also not the only entry point, and everything past this chapter is about the ones a front-door filter never sees.
+The single most common mistake in this chapter's subject is treating "the user's message" as the attack surface, defending it well, and stopping there. ProjectOS does exactly this: a regex block-list — a pattern-matching filter that rejects text matching a known bad phrase — on the message field, returning a 403 (an HTTP code meaning "request denied") on an obvious injection attempt, where injection means text crafted to look like an instruction the model should obey rather than content to weigh. It's a real defense, at a real entry point. It's also not the only entry point, and everything past this chapter is about the ones a front-door filter never sees.
 
 ## The problem in one diagram
 
@@ -31,7 +31,7 @@ flowchart TB
 
 <p className="fig-caption"><strong>Figure 8.1</strong> — One entry point is filtered. Two others reach the same agent, and the same future prompt, without passing anything.</p>
 
-A front-door filter checks the field a person types into. It has no reason to check a field a *system* writes into on that person's behalf — a knowledge-store entry, a summarized memory, a tool's return value — because none of those look like user input at the point they're created. They become user input, functionally, the moment they're pasted into a prompt and treated as instructions or trusted background. That gap between "where a filter is applied" and "where untrusted content actually enters the system" is what the rest of this chapter is about.
+A front-door filter checks the field a person types into. It has no reason to check a field a *system* writes into on that person's behalf — a knowledge-store entry, a summarized memory, a tool's return value (the result handed back from an action the model took, like a search or an API call) — because none of those look like user input at the point they're created. They become user input, functionally, the moment they're pasted into a prompt and treated as instructions or trusted background. That gap between "where a filter is applied" and "where untrusted content actually enters the system" is what the rest of this chapter is about.
 
 ## The pattern
 
@@ -58,7 +58,7 @@ sequenceDiagram
 
 Direct injection — a crafted instruction in the message a user actually types — is the failure mode most systems defend against first, because it's the most obvious entry point. Indirect injection is what Figure 8.2 shows: content enters through a path nobody thought of as "user input" — a memory write, a document upload, a tool's return value — and reaches a prompt later, through a completely different code path than the one carrying the filter. Chapter 7's memory-scope argument and this chapter's injection argument are the same finding looked at from two angles: an unscoped store is a cross-tenant leak; the same unscoped, unfiltered store is also an injection path. Fixing the scope gap and fixing the filter gap turn out to be the same piece of work.
 
-Runaway loops and error propagation are the other two failure modes this chapter closes out, and both were already earned by earlier chapters rather than introduced here. Chapter 1's iteration cap and chapter 2's retry ceiling are the same defense pointed at the same failure — a process that doesn't know when to stop costs money and takes actions nobody approved, whether the process not-stopping is a model looping or a gate retrying forever. Error propagation is chapter 2's opening arithmetic again: 0.95⁵ isn't a security finding, but a defect that compounds silently across five trusting agents and a defect that's injected deliberately at agent two compound the exact same way once they're past the point where anyone's checking.
+Runaway loops and error propagation are the other two failure modes this chapter closes out, and both were already earned by earlier chapters rather than introduced here. Chapter 1's iteration cap and chapter 2's retry ceiling are the same defense pointed at the same failure — a process that doesn't know when to stop costs money and takes actions nobody approved, whether the process not-stopping is a model looping or a gate retrying forever. Error propagation is chapter 2's opening arithmetic again: five agents each passing along a 95%-reliable answer compound to 0.95⁵ ≈ 77% — a defect that compounds silently across five trusting agents, and a defect that's injected deliberately at agent two, compound the exact same way once they're past the point where anyone's checking.
 
 ## Decision rules
 
@@ -71,7 +71,7 @@ Runaway loops and error propagation are the other two failure modes this chapter
 ### You probably don't need a new defense when
 
 - The content never leaves the trust boundary it entered in — a value scoped, checked, and consumed inside one request, touched by nobody else.
-- A gate you already built for a different reason happens to cover it. Chapter 2's rule gates and chapter 3's transition table both incidentally block a class of malformed input; check what you already have before adding a parallel defense that does the same job worse.
+- A gate you already built for a different reason happens to cover it. Chapter 2's rule gates and chapter 3's transition table — the list of which state changes are legal from a given state — both incidentally block a class of malformed input; check what you already have before adding a parallel defense that does the same job worse.
 
 ### The test
 
@@ -81,7 +81,7 @@ Ask: **for every place this system writes content that a future prompt might rea
 
 ### The filter that checks one field
 
-A regex or classifier is applied to the message parameter and nowhere else — not to a knowledge-base write, not to a workroom note, not to a tool's return value. Every one of those is a route to the same prompt the filter was built to protect. Fix: enumerate every place content reaches a prompt, not just the one a person types into directly, and check that list against where the filter actually runs.
+A regex or classifier (a trained model that automatically sorts input into categories, like "safe" or "suspicious") is applied to the message parameter and nowhere else — not to a knowledge-base write, not to a workroom note, not to a tool's return value. Every one of those is a route to the same prompt the filter was built to protect. Fix: enumerate every place content reaches a prompt, not just the one a person types into directly, and check that list against where the filter actually runs.
 
 ### Regex evasion
 
@@ -93,7 +93,7 @@ An iteration cap exists, but nothing tracks what each iteration is costing while
 
 ### A gate that trusts its own output
 
-An agent's own structured output is used to authorize an action a person should have approved — chapter 3's example of a model choosing its own next stage is the general case of this. The failure isn't that the model is malicious, it's that a gate meant to check an external decision was quietly repositioned to check the same system's own claim about itself.
+An agent's own structured output — its answer, returned in a fixed, machine-readable shape rather than free text — is used to authorize an action a person should have approved — chapter 3's example of a model choosing its own next stage is the general case of this. The failure isn't that the model is malicious, it's that a gate meant to check an external decision was quietly repositioned to check the same system's own claim about itself.
 
 ## Where it shows up in the teardowns
 
