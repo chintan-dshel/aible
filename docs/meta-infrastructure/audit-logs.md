@@ -12,7 +12,7 @@ Audit logs for AI systems are append-only records of every significant event: wh
 
 The distinction matters: a structured log that gets rotated and overwritten is a debugging aid. An audit log that is immutable, retained for years, and tied to user identity is an accountability record. Most AI systems need both, and they have different storage, access control, and retention requirements.
 
-Audit logs often have legal standing. HIPAA requires 6-year retention for covered entities. SOX mandates 7 years for financial records. GDPR's right of access means you must be able to produce records about data subjects on request. A log that can be modified or deleted after the fact cannot serve as a compliance record — which is why immutability is a hard requirement, not a best practice. Immutability must be enforced at the storage layer: a mutable database table where the application can run DELETE or UPDATE is not an audit log, regardless of application-level conventions.
+Audit logs often have legal standing. HIPAA (a US law setting requirements for handling health information) requires 6-year retention for covered entities. SOX (Sarbanes-Oxley, a US law governing financial reporting) mandates 7 years for financial records. GDPR (the EU's data-protection law)'s right of access means you must be able to produce records about data subjects on request. A log that can be modified or deleted after the fact cannot serve as a compliance record — which is why immutability is a hard requirement, not a best practice. Immutability must be enforced at the storage layer: a mutable database table where the application can run DELETE or UPDATE is not an audit log, regardless of application-level conventions.
 
 ## The problem it solves
 
@@ -26,7 +26,7 @@ LLM behavior is probabilistic and opaque. When something goes wrong — a harmfu
 
 Without structured audit logs, incident response is guesswork. You may have application logs that record "model call made" but not the actual content — leaving you unable to reconstruct the failure.
 
-There's also the compliance dimension. Healthcare systems (HIPAA), financial systems (SOX, MiFID II), and legal systems have mandatory record-keeping requirements. AI systems operating in these domains must demonstrate that every significant decision can be audited.
+There's also the compliance dimension. Healthcare systems (HIPAA), financial systems (SOX, MiFID II — an EU financial-markets regulation), and legal systems have mandatory record-keeping requirements. AI systems operating in these domains must demonstrate that every significant decision can be audited.
 
 ## How it works under the hood
 
@@ -44,7 +44,8 @@ import json
 @dataclass
 class AuditEvent:
     # Identity
-    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # uuid: a
+    # randomly generated, effectively-unique ID
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     user_id: str = ""
     session_id: str = ""
@@ -52,20 +53,24 @@ class AuditEvent:
 
     # Model call
     model: str = ""
-    system_prompt_hash: str = ""   # hash only — don't log raw system prompt in hot storage
+    system_prompt_hash: str = ""   # hash (a scrambled, fixed-length fingerprint
+    # of the data, not the data itself) only — don't log the raw system prompt in
+    # hot storage (the fast, frequently-queried tier described below)
     input_tokens: int = 0
     output_tokens: int = 0
     latency_ms: float = 0.0
 
     # Content (scrubbed)
-    user_message_scrubbed: str = ""   # PII-scrubbed version
+    user_message_scrubbed: str = ""   # PII (personally identifiable
+    # information -- names, emails, SSNs, and the like) -scrubbed version
     response_scrubbed: str = ""
 
     # Tool calls
     tool_calls: list = field(default_factory=list)  # [{"tool": "...", "args_hash": "..."}]
 
     # Policy decisions
-    guardrail_triggered: bool = False
+    guardrail_triggered: bool = False  # guardrail: a check run on input or
+    # output to catch unsafe or policy-violating content
     guardrail_action: str = ""   # "block", "redact", "warn", ""
     validation_passed: bool = True
 
@@ -84,9 +89,9 @@ class AuditEvent:
 
 Never log raw user content in long-term audit storage. Scrub PII before writing.
 
-**Important limitation:** regex-based scrubbing catches known patterns (email format, US phone format, credit card format) but will miss names in running text, non-standard formatting, and non-English/non-US PII formats. These patterns are US-centric and illustrative — for production systems handling international users, use a dedicated library like Microsoft Presidio or Google DLP, and validate against your actual user population's data formats. Regex scrubbing is a complement to access controls, not a substitute.
+**Important limitation:** regex (a text-pattern matcher)-based scrubbing catches known patterns (email format, US phone format, credit card format) but will miss names in running text, non-standard formatting, and non-English/non-US PII formats. These patterns are US-centric and illustrative — for production systems handling international users, use a dedicated library like Microsoft Presidio or Google DLP, and validate against your actual user population's data formats. Regex scrubbing is a complement to access controls, not a substitute.
 
-**Scrubbing the log record does not scrub the value in memory.** The raw `user_message` string is still on the call stack while the API call is in flight. APM agents (Sentry, Datadog, OpenTelemetry) may capture it from exception frames or distributed traces. Scrub at ingestion — before passing the value to any function — rather than only before writing the log record.
+**Scrubbing the log record does not scrub the value in memory.** The raw `user_message` string is still on the call stack while the API call is in flight. APM (application performance monitoring) agents (Sentry, Datadog, OpenTelemetry) — background tools that watch your running application and record what happened — may capture it from exception frames (the snapshot of local variables saved when an error is thrown) or distributed traces (the record of a single request's path across multiple services). Scrub at ingestion — before passing the value to any function — rather than only before writing the log record.
 
 ```python
 import re
@@ -239,13 +244,13 @@ RETENTION_POLICY = {
     },
     "warm": {
         "duration_days": 365,
-        "storage": "compressed object storage (S3, GCS) with retention policy",
+        "storage": "compressed object storage (S3, GCS -- Amazon and Google's file-storage cloud services) with retention policy",
         "content": "scrubbed structured events (same as hot, older)",
         "access": "compliance team, legal holds",
     },
     "cold": {
         "duration_days": 2557,  # example only — determine from legal/compliance requirements
-        "storage": "archival (Glacier, cold storage) with object lock",
+        "storage": "archival (Glacier -- AWS's cheap, slow-to-retrieve storage tier, cold storage) with object lock",
         "content": "aggregates + metadata only; no raw content",
         "access": "legal requests, regulatory audits only",
     },
@@ -416,7 +421,7 @@ Tool call auditing is more important than LLM output auditing for agents. The LL
 
 ## Common failure modes and gotchas
 
-**1. Logging raw PII in long-term storage.** User emails, phone numbers, and health data in plain-text logs create GDPR, HIPAA, and CCPA obligations. Scrub or pseudonymize before writing to any log that persists beyond 24 hours.
+**1. Logging raw PII in long-term storage.** User emails, phone numbers, and health data in plain-text logs create GDPR, HIPAA, and CCPA (California's consumer-privacy law) obligations. Scrub or pseudonymize before writing to any log that persists beyond 24 hours.
 
 **2. Writable audit logs.** If your application process can overwrite or delete log files, they're not audit logs. Use append-only log targets — object storage with object lock, or a database with immutable rows.
 
