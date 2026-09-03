@@ -10,9 +10,9 @@ description: Prompt caching, semantic cache, and exact-match cache — where eac
 
 Caching in LLM systems means storing and reusing previously computed results so that repeated or similar requests don't repeat the expensive work. There are four distinct caching layers in AI systems, each working at a different level:
 
-- **Prompt caching** — cache the KV states of a long static prefix (system prompt, RAG context) so repeated requests don't reprocess it
+- **Prompt caching** — the model has to do real computation just to "read" a long prompt before it can start answering; this saves and reuses that intermediate computation (the "KV state," short for key-value state — a byproduct of the attention mechanism) for a long static prefix (system prompt, RAG context — retrieved text pasted into the prompt) so repeated requests don't reprocess it
 - **Exact-match cache** — return a stored response for requests identical to a previous one
-- **Semantic cache** — return a stored response for requests *similar* to a previous one (by embedding distance)
+- **Semantic cache** — return a stored response for requests *similar* to a previous one, judged by embedding distance: how close two pieces of text land when each is converted into a list of numbers representing its meaning
 - **KV cache** — the internal attention cache the model maintains *during* a single generation (not under application control)
 
 The first three are under your control as an application developer. The fourth is managed by the inference runtime.
@@ -33,7 +33,7 @@ Caching reduces cost and latency for the fraction of requests that can be served
 
 Anthropic's prompt caching allows you to mark a portion of your prompt as a cacheable prefix. The API caches the internal KV attention states of that prefix after the first call. Subsequent requests that share the same prefix skip the attention computation for those tokens.
 
-The benefit: input token computation is expensive. Caching a 10K-token system prompt + RAG context block means subsequent calls within the cache TTL pay a fraction of the normal input token cost.
+The benefit: input token computation is expensive. Caching a 10K-token system prompt + RAG context block means subsequent calls within the cache TTL (time-to-live: how long the cached copy stays valid before it expires and has to be recomputed) pay a fraction of the normal input token cost.
 
 ```python
 import anthropic
@@ -65,7 +65,7 @@ print(response.usage.cache_read_input_tokens)       # tokens read from cache (su
 
 ### Exact-match cache
 
-Cache the full (input, output) pair. Return the cached output immediately if the exact same request is seen again. Best for idempotent, deterministic-feeling requests.
+Cache the full (input, output) pair. Return the cached output immediately if the exact same request is seen again. Best for idempotent (running it twice produces the same result as running it once, with no extra side effects), deterministic-feeling requests.
 
 ```python
 import hashlib
@@ -100,7 +100,7 @@ def cached_call(messages: list, system: str = "", model: str = "claude-sonnet-4-
 
 ### Semantic cache
 
-Use embedding similarity to match semantically equivalent queries to cached responses, even when the exact text differs.
+Use embedding similarity — comparing the numeric fingerprints of two pieces of text to see how close their meanings are — to match semantically equivalent queries to cached responses, even when the exact text differs.
 
 ```python
 import anthropic
@@ -157,7 +157,7 @@ def semantic_cached_call(query: str, system: str = "") -> str:
 
 ### KV cache (model-internal)
 
-Not a developer-controlled mechanism — this is the attention key-value cache the model maintains during a single generation pass. Each generated token attends to all previous tokens; without caching, that attention recomputes all previous KV pairs on every step. The KV cache stores them.
+Not a developer-controlled mechanism. When the model generates text, each new token has to weigh how relevant every earlier token is to it (that weighing is what "attention" refers to) — this is the attention key-value cache the model maintains during a single generation pass. Each generated token attends to all previous tokens; without caching, that attention recomputes all previous KV pairs on every step. The KV cache stores them so each new token doesn't redo that work from scratch.
 
 Relevance for application developers: the KV cache grows linearly with context length, consuming GPU memory. For long-context requests (> 32K tokens), KV cache memory can exceed model parameter memory. Inference providers manage this automatically; self-hosting requires planning for this.
 

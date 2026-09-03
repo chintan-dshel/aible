@@ -11,20 +11,20 @@ description: Streaming, batching, speculative decoding, quantization — how to 
 Latency optimization for AI systems is the set of techniques that reduce the time between a user's request and a useful response — either by making the underlying computation faster, or by changing what the user perceives as "response time" through streaming and progressive delivery.
 
 AI latency has two distinct components with different characteristics:
-- **Time to first token (TTFT)**: how long until the first token appears. Determines perceived responsiveness.
+- **Time to first token (TTFT)**: how long until the first token (roughly, word or word-fragment — the unit a model generates and is billed by) appears. Determines perceived responsiveness.
 - **Time to last token (TTLT)**: total end-to-end generation time. Determines when the response is complete.
 
 Users tolerate high TTLT better than high TTFT. A response that starts streaming in 300ms and takes 3 seconds total feels faster than one that waits 2 seconds then delivers all at once.
 
 ## The problem it solves
 
-LLM inference is slow relative to user expectations. Users experience latency as friction; latency above 2 seconds for first token hurts engagement. The latency problem is structural: autoregressive generation produces one token at a time, and each token requires a full forward pass through a large model.
+LLM inference is slow relative to user expectations. Users experience latency as friction; latency above 2 seconds for first token hurts engagement. The latency problem is structural: autoregressive generation — the model writes one token at a time, each one conditioned on everything written so far, so it can't skip ahead — produces one token at a time, and each token requires a full forward pass (one complete pass of the input through the whole network) through a large model.
 
 Compounding factors:
-- **Context length grows latency**: processing 50K input tokens takes significantly longer than processing 1K tokens — even with KV caching, prefill time scales with input length.
+- **Context length grows latency**: processing 50K input tokens takes significantly longer than processing 1K tokens — even with KV caching (reusing the model's own intermediate computation from tokens already processed, instead of redoing it), prefill time (the time spent processing the input before the model starts generating a reply) scales with input length.
 - **Output length is unpredictable**: you can't know in advance how many tokens the model will generate.
 - **Network adds overhead**: API calls add round-trip latency; each model call adds a separate network hop.
-- **Guardrail chains multiply latency**: input classifier + model call + output classifier = 3 sequential network hops.
+- **Guardrail chains multiply latency**: input classifier (a model call whose only job is to check and label the input) + model call + output classifier = 3 sequential network hops.
 
 ## How it works under the hood
 
@@ -52,7 +52,7 @@ stream_response("Explain transformer attention in three paragraphs.")
 
 For web applications, stream tokens over Server-Sent Events (SSE) or WebSockets. The UI renders tokens as they arrive. Most LLM API providers support streaming; it's always worth enabling.
 
-**What streaming doesn't help:** tasks where you need the complete response before acting on it (structured extraction, function calling, validation). For those, streaming adds complexity without benefit.
+**What streaming doesn't help:** tasks where you need the complete response before acting on it (structured extraction — pulling a JSON object out of the reply, function calling — the model requesting an action be run on its behalf, validation). For those, streaming adds complexity without benefit.
 
 ### Parallelizing independent calls
 
@@ -263,9 +263,9 @@ The guardrail latency problem is real. Running three model calls (input classifi
 
 **3. Parallel calls without error handling.** `asyncio.gather()` raises the first exception by default, cancelling all other tasks. Use `return_exceptions=True` for resilience, then handle exceptions per-task.
 
-**4. Reducing max_tokens too aggressively.** Setting `max_tokens=64` for a task that occasionally requires 200 tokens causes truncation. The model stops mid-sentence. Always set `max_tokens` to the 99th percentile of expected output length for that task.
+**4. Reducing max_tokens too aggressively.** Setting `max_tokens=64` for a task that occasionally requires 200 tokens causes truncation. The model stops mid-sentence. Always set `max_tokens` to the 99th percentile of expected output length for that task — the length that covers 99 out of 100 real responses, so if most answers run 100–150 tokens but a rare one hits 300, set the cap near 300, not near the average.
 
-**5. Not measuring TTFT separately from TTLT.** P95 total latency looks fine while P95 TTFT is 2 seconds — users see a blank screen for 2 seconds before anything appears. Track both metrics.
+**5. Not measuring TTFT separately from TTLT.** P95 total latency (the value 95% of requests fall under, so the slowest 1-in-20 is worse than this) looks fine while P95 TTFT is 2 seconds — users see a blank screen for 2 seconds before anything appears. Track both metrics.
 
 **6. Model downgrade without quality benchmark.** Switching from Sonnet to Haiku cuts latency and cost but may significantly degrade quality on complex tasks. Always run your eval set on both models before downgrading in production.
 
@@ -277,7 +277,7 @@ The guardrail latency problem is real. Running three model calls (input classifi
 
 **3. TTFT vs TTLT analysis** — Run 100 requests through a streaming pipeline. Record TTFT and TTLT for each. Plot both distributions (P50/P95/P99). Compute the correlation between input length and TTFT. This shows how context length affects perceived responsiveness.
 
-**4. Model tier latency benchmark** — On the same set of 50 classification tasks, measure Haiku vs Sonnet: latency (P50/P95), quality (LLM-as-judge score), and cost. Find the cost-latency-quality Pareto frontier. Decide which tier is appropriate for which pipeline stage.
+**4. Model tier latency benchmark** — On the same set of 50 classification tasks, measure Haiku vs Sonnet: latency (P50/P95), quality (LLM-as-judge score), and cost. Find the cost-latency-quality Pareto frontier — the set of options where improving any one of the three would require giving up ground on another, so no option on it is simply worse than another in every way. Decide which tier is appropriate for which pipeline stage.
 
 ## Going deeper
 
