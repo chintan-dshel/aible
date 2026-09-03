@@ -1,0 +1,91 @@
+<!doctype html><html lang=en dir=ltr class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-STYLE" data-has-hydrated=false><head><meta charset=UTF-8><meta name=generator content="Docusaurus v3.10.0"><title data-rh=true>Style guide | Agentic Systems</title><meta data-rh=true name=viewport content="width=device-width, initial-scale=1.0"/><meta data-rh=true name=twitter:card content=summary_large_image /><meta data-rh=true property=og:url content=https://chintan-dshel.github.io/aible/docs/STYLE /><meta data-rh=true property=og:locale content=en /><meta data-rh=true name=docusaurus_locale content=en /><meta data-rh=true name=docsearch:language content=en /><meta data-rh=true name=docusaurus_version content=current /><meta data-rh=true name=docusaurus_tag content=docs-default-current /><meta data-rh=true name=docsearch:version content=current /><meta data-rh=true name=docsearch:docusaurus_tag content=docs-default-current /><meta data-rh=true property=og:title content="Style guide | Agentic Systems"/><meta data-rh=true name=description content="This file is the checkable criterion behind two review passes this project runs:"/><meta data-rh=true property=og:description content="This file is the checkable criterion behind two review passes this project runs:"/><link data-rh=true rel=icon href=/aible/img/favicon.ico /><link data-rh=true rel=canonical href=https://chintan-dshel.github.io/aible/docs/STYLE /><link data-rh=true rel=alternate href=https://chintan-dshel.github.io/aible/docs/STYLE hreflang=en /><link data-rh=true rel=alternate href=https://chintan-dshel.github.io/aible/docs/STYLE hreflang=x-default /><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css type=text/css crossorigin=anonymous><link rel=stylesheet href=/aible/assets/css/styles.b9ae5210.css /><script src=/aible/assets/js/runtime~main.19d1d56c.js defer></script><script src=/aible/assets/js/main.5e8c4f72.js defer></script></head><body><svg style="display: none;"><defs>
+<symbol id=theme-svg-external-link viewBox="0 0 24 24"><path fill=currentColor d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme-c14")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{for(var[t,e]of new URLSearchParams(window.location.search).entries())if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id=__docusaurus><div role=region aria-label="Skip to main content"><a class=skipToContent_fXgn href=#__docusaurus_skipToContent_fallback>Skip to main content</a></div><nav aria-label=Main class="theme-layout-navbar navbar navbar--fixed-top"><div class=navbar__inner><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded=false class="navbar__toggle clean-btn" type=button><svg width=30 height=30 viewBox="0 0 30 30" aria-hidden=true><path stroke=currentColor stroke-linecap=round stroke-miterlimit=10 stroke-width=2 d="M4 7h22M4 15h22M4 23h22"/></svg></button><a class=navbar__brand href=/aible/><b class="navbar__title text--truncate">Agentic Systems</b></a><div class="navbar__item dropdown dropdown--hoverable"><a href=# aria-haspopup=true aria-expanded=false role=button class=navbar__link>The Book</a><ul class=dropdown__menu><li><a class=dropdown__link href=/aible/docs/patterns/>Agentic Architecture Patterns</a><li><a class=dropdown__link href=/aible/docs/teardowns/>Teardowns: Systems I Built</a></ul></div><div class="navbar__item dropdown dropdown--hoverable"><a href=# aria-haspopup=true aria-expanded=false role=button class=navbar__link>Reference</a><ul class=dropdown__menu><li><a class=dropdown__link href=/aible/docs/foundations/>AI Foundations</a><li><a class=dropdown__link href=/aible/docs/core-building-blocks/>Agentic Building Blocks</a><li><a class=dropdown__link href=/aible/docs/meta-infrastructure/>Infrastructure and Tooling</a><li><a class=dropdown__link href=/aible/docs/production-concerns/>Running in Production</a><li><a class=dropdown__link href=/aible/docs/aspirational/>The Frontier</a></ul></div><a class="navbar__item navbar__link" href=/aible/docs/glossary>Glossary</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type=button disabled title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill=currentColor d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill=currentColor d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill=currentColor d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"/></svg></button></div><div class=navbarSearchContainer_Bca1><div class="navbar__search searchBarContainer_NW3z" dir=ltr><input placeholder=Search aria-label=Search class="navbar__search-input searchInput_YFbd" value="" /><div class="loadingRing_RJI3 searchBarLoadingRing_YnHq"><div></div><div></div><div></div><div></div></div></div></div></div></div><div role=presentation class=navbar-sidebar__backdrop></div></nav><div id=__docusaurus_skipToContent_fallback class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class=docsWrapper_hBAB><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type=button></button><div class=docRoot_UBD9><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class=row><div class="col docItemCol_VOVn"><div class=docItemContainer_Djhp><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type=button class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Style guide</h1></header>
+<p>This file is the checkable criterion behind two review passes this project runs:
+a voice pass (does this read as written by a human for humans) and an
+accessibility pass (can a reader with no coding background follow it). Both are
+referenced from <code>CLAUDE.md</code>. Treat every rule here as testable — if you can't
+point at a sentence and say pass or fail, the rule isn't specific enough yet.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=voice>Voice<a href=#voice class=hash-link aria-label="Direct link to Voice" title="Direct link to Voice" translate=no>​</a></h2>
+<p>Written by a human for humans. Established during the Part 1 voice rewrite
+(2026-09-02) and applied to every chapter since.</p>
+<ol>
+<li class=""><strong>No paragraph ends on an aphorism.</strong> Cover the last sentence with your
+thumb. If the paragraph still works, the closer was decoration — cut it.</li>
+<li class=""><strong>Budget one "X is not Y, it is Z" per chapter</strong>, and only for a literal
+contradiction between two things (two artifacts disagreeing, not a
+rhetorical flourish).</li>
+<li class=""><strong>Never announce a count before a list.</strong> Not "Figure 2.1 shows three
+things going wrong." Start with the first thing; let the reader count.</li>
+<li class=""><strong>Delete "Figure N.N shows/is/answers" sentences.</strong> The caption already
+said it. Start the prose at the substance.</li>
+<li class=""><strong>Name who made the decision — usually "I."</strong> Not "the gate was removed."
+"I ripped it out." Passive voice erases the person, and this book is
+written by a person who made real decisions.</li>
+<li class=""><strong>Claims about practice carry a number, a date, a file path, or a commit
+hash — or they get cut or explicitly hedged.</strong> No invented precision
+("within a week") standing in for a real measurement you don't have.</li>
+<li class=""><strong>Vary the shape of parallel entries.</strong> Six failure modes in a row, each
+built as symptom-symptom-<code>Fix:</code>, reads as a generated table. At least one
+entry per section should break the pattern.</li>
+<li class=""><strong>No sentence appears in two chapters.</strong> Each "Where it shows up in the
+teardowns" section is written from that teardown's actual content, not
+filled from a template.</li>
+<li class=""><strong>A "My take" callout contains a first-person verb and a fact only the
+author could know.</strong> If you can <code>grep</code> the block for <code>\bI\b</code> and get zero
+hits, it isn't a take, it's the body restated in third person.</li>
+<li class=""><strong>Tell the anecdote before the abstraction, not after in a callout.</strong> If
+you have a real story, it opens the section — it doesn't get relegated to
+a box at the bottom.</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=accessibility>Accessibility<a href=#accessibility class=hash-link aria-label="Direct link to Accessibility" title="Direct link to Accessibility" translate=no>​</a></h2>
+<p>Established 2026-09-02, in response to the author's read: teardowns and parts
+of the pattern chapters were too technical for a non-coder audience. The goal
+is genuine Feynman-technique explanation — the plain-language meaning woven
+into the sentence where a term does its work, not segregated into a skippable
+aside.</p>
+<ol>
+<li class=""><strong>Every technical term or code identifier gets its plain-English meaning
+in the same sentence it first appears in.</strong> Not "<code>gatePlanning</code> and
+<code>gateRetro</code> take the project row and return." Instead: name what the two
+functions were supposed to do, in plain terms, before or immediately
+after naming them.</li>
+<li class=""><strong>An analogy or plain restatement precedes precise mechanism wherever the
+mechanism is non-trivial.</strong> If a paragraph would lose a reader with no
+coding background, that reader needs a foothold before the technical
+description, not after.</li>
+<li class=""><strong>A code snippet gets a one-sentence plain-English "what this does"
+immediately before or after it.</strong> Never let a code block stand as the
+only explanation of an idea.</li>
+<li class=""><strong>No bare complexity or math notation without a grounding example.</strong> Not
+"O(n) per query." Instead, a concrete number: what that actually means at
+a size the reader can picture.</li>
+<li class=""><strong>A concept used more than once in a page is glossed once, not
+reflexively every time</strong> — the fix for rule 1 is not to over-explain, it's
+to explain once, at first use, clearly enough that the reader doesn't need
+it again.</li>
+<li class=""><strong>The test</strong>: read the paragraph as someone who has never written code.
+Is there a point where that reader would have to stop and guess what a
+term means to keep following the argument? If yes, the rule above it was
+skipped, not the reader's fault.</li>
+</ol>
+<p><strong>Scope of rule 1, clarified after the first calibration pass (2026-09-02):</strong>
+"First appears" means first appears <strong>on that page</strong>, not first appears
+anywhere on the site. The site explicitly offers non-linear reading paths
+(<code>intro.md</code>'s "Show me a real system first," "Something is already wrong,"
+"Thirty minutes") that send a reader into a chapter out of book order — a
+term glossed only in an earlier chapter is unglossed for a reader who
+started somewhere else. Each page must stand alone for its own key jargon.
+A "Reference material" or "Where it shows up" link-list entry is exempt —
+that text is a pointer to a page that will do the explaining, not a claim
+being made in the current argument, so it can use a term at book-level
+density (e.g. "verbalized confidence," "critic-revise loops").</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id=applying-both-together>Applying both together<a href=#applying-both-together class=hash-link aria-label="Direct link to Applying both together" title="Direct link to Applying both together" translate=no>​</a></h2>
+<p>Voice and accessibility can pull in different directions — accessibility asks
+for more explanation, voice rule 6 (no invented precision) and rule 4
+(no restating captions) ask for less padding. When they conflict, accessibility
+wins for a term a reader needs to keep following the argument; voice wins for
+decoration. A plain-language gloss earning its place because a reader needs it
+is not the same kind of addition as a sentence restating what a diagram
+already showed.</div></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href=#voice class="table-of-contents__link toc-highlight">Voice</a><li><a href=#accessibility class="table-of-contents__link toc-highlight">Accessibility</a><li><a href=#applying-both-together class="table-of-contents__link toc-highlight">Applying both together</a></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class=footer__copyright>Agentic Systems: Patterns and Teardowns. Built with Docusaurus.</div></div></div></footer></div></body>
