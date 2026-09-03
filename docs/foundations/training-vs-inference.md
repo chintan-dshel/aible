@@ -37,12 +37,12 @@ The confusion this page addresses: people often conflate "the model" with "train
 
 ### Phase 1: Pretraining
 
-**What it is**: Train a transformer from random initialization on a massive corpus of text, predicting the next token at every position.
+**What it is**: Train a transformer — the neural network design behind most current language models — from random initialization (starting weights set to small random numbers, before any learning) on a massive corpus of text, predicting the next token (roughly, the next word or word-fragment) at every position.
 
-**Objective**: minimize cross-entropy loss over the training corpus:
+**Objective**: minimize cross-entropy loss over the training corpus — in plain terms, for every word in the training text, check how confident the model was in the actual next word, and nudge its internal numbers toward more confidence in the right answer:
 $$\mathcal{L} = -\sum_{t} \log P(w_t \mid w_1, \ldots, w_{t-1}; \theta)$$
 
-**Data**: typically trillions of tokens drawn from Common Crawl (web text), books, code repositories, Wikipedia, and curated high-quality sources. GPT-3 trained on ~300B tokens; Llama 3 on ~15 trillion tokens.
+**Data**: typically trillions of tokens drawn from Common Crawl (web text), books, code repositories, Wikipedia, and curated high-quality sources. GPT-3 trained on ~300B tokens; Llama 3 on ~15 trillion tokens. ("Parameters" and "weights," used throughout this page, both mean the same thing: the internal numbers a model adjusts as it learns — a "70B model" has 70 billion of them.)
 
 **Compute**: orders of magnitude larger than any subsequent phase. GPT-4 reportedly required tens of thousands of A100 GPU-days (the exact figure is not public). Llama 3 70B required ~6.4 million GPU-hours. This is where most of the cost lives.
 
@@ -88,13 +88,13 @@ flowchart TB
 
 1. Collect human preference data: show raters two or more model outputs for the same prompt, have them rank by quality.
 2. Train a **reward model** to predict these human preferences.
-3. Fine-tune the language model using PPO (Proximal Policy Optimization) to generate responses that score highly under the reward model, while staying close to the SFT model (the KL penalty prevents reward hacking).
+3. Fine-tune the language model using PPO (Proximal Policy Optimization, a reinforcement-learning algorithm) to generate responses that score highly under the reward model, while staying close to the SFT model — a constraint called the KL penalty, which stops the model from "reward hacking": finding some cheap trick that fools the reward model into giving a high score without actually producing a better response.
 
 RLHF is expensive: it requires both the reward model and the PPO loop, which is computationally intensive and operationally complex.
 
 #### DPO (Direct Preference Optimization)
 
-Rafailov et al. (2023) showed that the RLHF objective can be optimized directly from preference data without training a separate reward model or running RL. DPO recasts the problem as a classification loss on (preferred, rejected) response pairs:
+Rafailov et al. (2023) showed that the RLHF objective can be optimized directly from preference data without training a separate reward model or running RL. In plain terms: instead of RLHF's three separate steps, DPO trains directly on pairs of "this response was preferred, that one wasn't," nudging the model to make preferred responses more likely and rejected ones less likely, all in one pass. DPO recasts the problem as a classification loss on (preferred, rejected) response pairs:
 
 $$\mathcal{L}_{\text{DPO}} = -\mathbb{E}\!\left[\log \sigma\!\left(\beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\text{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\text{ref}}(y_l \mid x)}\right)\right]$$
 
@@ -102,26 +102,26 @@ Where $y_w$ is the preferred response, $y_l$ is the rejected response, and $\pi_
 
 #### Constitutional AI (CAI)
 
-Anthropic's approach for Claude. Instead of relying entirely on human preference labels (which are expensive and inconsistent), CAI has the model critique and revise its own outputs according to a set of principles (the "constitution"). A red-teaming phase generates harmful responses; a critique-revision phase has the model improve them; supervised learning on the improved outputs bootstraps the alignment signal. Human preference labels are then used in a smaller targeted pass. This reduces labeling cost and makes the alignment process more transparent.
+Anthropic's approach for Claude. Instead of relying entirely on human preference labels (which are expensive and inconsistent), CAI has the model critique and revise its own outputs according to a set of principles (the "constitution"). A red-teaming phase — deliberately trying to provoke bad behavior, the way a security tester probes a system for weaknesses — generates harmful responses; a critique-revision phase has the model improve them; supervised learning on the improved outputs bootstraps the alignment signal. Human preference labels are then used in a smaller targeted pass. This reduces labeling cost and makes the alignment process more transparent.
 
 ### Phase 4: Inference
 
 Inference is the phase users interact with — the model generates a response to a prompt.
 
-**The forward pass**: a single forward pass through all $N$ transformer layers, producing a vector of logits over the vocabulary for the next token.
+**The forward pass**: one pass of the input through all $N$ transformer layers in sequence — no looping back, just forward through the network once — producing a vector of logits (raw, unnormalized scores, one per possible next word) over the vocabulary (the model's full list of possible tokens) for the next token.
 
-**Sampling**: the logits are converted to a probability distribution; the next token is drawn from it. Repeat until `[EOS]`.
+**Sampling**: the logits are converted to a probability distribution; the next token is drawn from it. Repeat until the model produces `[EOS]` ("end of sequence"), a special token that means "stop here."
 
 Key sampling parameters:
 
 | Parameter | What it controls |
 |---|---|
 | **Temperature** ($T$) | Sharpness of the distribution. $T \to 0$: approaches greedy decoding (always pick the highest-probability token). $T=1$: sample from the distribution as trained. $T>1$: flatten the distribution, more randomness. |
-| **top-p (nucleus sampling)** | Sample from the smallest set of tokens whose cumulative probability exceeds $p$. Typical: $p=0.9$. Prevents sampling from very unlikely tokens. |
+| **top-p (nucleus sampling)** | Rank candidate next words by probability, then only consider the smallest group at the top whose probabilities add up past $p$ — with $p=0.9$, that might be the top 3 words for an obvious continuation, or the top 200 for a genuinely open-ended one. Prevents sampling from very unlikely tokens. |
 | **top-k** | Sample from only the $k$ most probable tokens. Less principled than top-p but simpler to tune. |
 | **Repetition penalty** | Reduce the probability of tokens that have already appeared in the context. Prevents loops. |
 
-**Compute at inference**: one forward pass per generated token. For a 70B model, a single forward pass costs roughly 70B × 2 = 140GB of memory reads (the model weights). Each token generated triggers this. Context length matters: the KV cache grows with sequence length, increasing memory pressure.
+**Compute at inference**: one forward pass per generated token. For a 70B model, a single forward pass costs roughly 70B × 2 = 140GB of memory reads (the model weights). Each token generated triggers this. Context length matters: the model keeps a running cache of intermediate values from every token processed so far (the "KV cache," short for key-value cache) so it doesn't redo that work on every new token — but the cache itself grows with sequence length, increasing memory pressure.
 
 **Inference optimization techniques:**
 
@@ -132,15 +132,15 @@ Key sampling parameters:
 
 ### Parameter-efficient fine-tuning (PEFT)
 
-Full fine-tuning updates all $\theta$ parameters — for a 70B model, this requires 70B gradients in memory simultaneously, making it impractical without a significant GPU cluster. PEFT methods adapt a pretrained model by training only a small number of additional parameters:
+Full fine-tuning updates all $\theta$ parameters — for a 70B model, this requires 70B gradients (one adjustment value per parameter, computed during training to say which direction and how much to nudge it) in memory simultaneously, making it impractical without a significant GPU cluster. PEFT methods adapt a pretrained model by training only a small number of additional parameters:
 
-**LoRA (Low-Rank Adaptation)**: freeze the original weight matrix $W$; add a trainable low-rank decomposition $\Delta W = BA$ where $B \in \mathbb{R}^{d \times r}$ and $A \in \mathbb{R}^{r \times k}$ with rank $r \ll \min(d, k)$. Only $B$ and $A$ are trained. At inference, merge: $W' = W + BA$. With rank 16, this is ~0.1% of the original parameters.
+**LoRA (Low-Rank Adaptation)**: instead of updating the model's existing weight matrix directly, freeze it and add a small, separate pair of matrices alongside it — together far smaller than the original, roughly 0.1% of its size at a typical setting — and train only that pair. At inference, the small pair is merged back into the original weights. In the math: freeze the original weight matrix $W$; add a trainable low-rank decomposition $\Delta W = BA$ where $B \in \mathbb{R}^{d \times r}$ and $A \in \mathbb{R}^{r \times k}$ with rank $r \ll \min(d, k)$. Only $B$ and $A$ are trained. At inference, merge: $W' = W + BA$.
 
 **QLoRA**: combines LoRA with 4-bit quantization of the base model. Allows fine-tuning 70B+ parameter models on a single consumer GPU (24GB VRAM). The standard approach for domain-specific fine-tuning of large open models.
 
 ## Concrete example
 
-Fine-tuning Llama 3 8B on a custom dataset using QLoRA:
+Fine-tuning Llama 3 8B on a custom dataset using QLoRA — the script below loads the model compressed to 4-bit precision, attaches a small trainable LoRA adapter to it, trains only that adapter on your data, and saves just the adapter (a few megabytes) rather than a new copy of the whole model:
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
@@ -225,9 +225,9 @@ Fine-tuning is not free: it costs compute, requires good data, and produces a mo
 
 **2. Data leakage between phases.** If your fine-tuning data includes examples similar to your evaluation set, you get optimistic numbers that don't hold in production. Keep a held-out evaluation set that was never seen during any training phase.
 
-**3. Reward model overoptimization.** In RLHF, the language model can learn to exploit the reward model — producing responses that score highly under the reward model's distribution but are actually worse by human judgment. This is Goodhart's Law applied to RL. Fix: the KL penalty term in PPO limits how far the policy can drift; use iterative human evaluation rather than relying purely on reward model scores.
+**3. Reward model overoptimization.** In RLHF, the language model can learn to exploit the reward model — producing responses that score highly under the reward model's distribution but are actually worse by human judgment. This is Goodhart's Law — "when a measure becomes a target, it stops being a good measure" — applied to reinforcement learning. Fix: the KL penalty term in PPO limits how far the policy can drift; use iterative human evaluation rather than relying purely on reward model scores.
 
-**4. SFT data format mismatch.** The SFT data must be formatted exactly as the model expects — with the correct chat template, special tokens, and role markers. A mismatch between your training format and the model's expected format causes training to proceed but the resulting model to behave strangely at inference time.
+**4. SFT data format mismatch.** The SFT data must be formatted exactly as the model expects — with the correct chat template (the exact wrapper text and structure the model was trained to see around a conversation), special tokens (reserved markers like `[EOS]` that mean something specific rather than being ordinary words), and role markers (the labels distinguishing "this part was the user" from "this part was the assistant"). A mismatch between your training format and the model's expected format causes training to proceed but the resulting model to behave strangely at inference time.
 
 **5. Wrong LoRA rank for the task.** Rank 4–8 is often enough for style and format adaptation; rank 64–128 may be needed for significant knowledge injection. Using too low a rank for a complex task produces a model that seems fine during training but fails on diverse prompts. Monitor validation loss and spot-check outputs, not just training loss.
 

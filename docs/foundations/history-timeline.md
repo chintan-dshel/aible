@@ -24,7 +24,7 @@ A reference timeline: what happened, when, and why it mattered. For the story co
 
 **1966** — ELIZA — Joseph Weizenbaum at MIT creates ELIZA, a chatbot that mirrors user statements to simulate a psychotherapist. Users report feeling genuinely understood. Weizenbaum is disturbed by this; his 1976 book *Computer Power and Human Reason* is the earliest serious critique of anthropomorphizing AI.
 
-**1969** — Minsky & Papert, *Perceptrons* — Prove that single-layer perceptrons cannot learn XOR or any non-linearly separable function. Widely (and somewhat unfairly) interpreted as refuting neural networks entirely. Contributes to the first AI winter.
+**1969** — Minsky & Papert, *Perceptrons* — Prove that single-layer perceptrons cannot learn XOR (a pattern that can't be separated by a single straight dividing line, however you draw it) or any other non-linearly separable function. Widely (and somewhat unfairly) interpreted as refuting neural networks entirely. Contributes to the first AI winter.
 
 ---
 
@@ -38,7 +38,7 @@ A reference timeline: what happened, when, and why it mattered. For the story co
 
 **1981** — Japan's Fifth Generation Computer Project — Japan announces a ten-year, $850M program to build AI-capable hardware and software. Triggers matching investment in the US and Europe. Much of the promised capability is not delivered.
 
-**1986** — Backpropagation popularized — Rumelhart, Hinton & Williams publish "Learning representations by back-propagating errors" in *Nature*. Backpropagation was independently discovered earlier (Werbos, 1974; LeCun, 1985) but this paper's clarity and framing re-ignites interest in neural networks.
+**1986** — Backpropagation popularized — Rumelhart, Hinton & Williams publish "Learning representations by back-propagating errors" in *Nature*. Backpropagation is the algorithm that lets a network learn from its mistakes: run an example through, compare the output to the right answer, then work backward through the network adjusting each connection by how much it contributed to the error. It was independently discovered earlier (Werbos, 1974; LeCun, 1985) but this paper's clarity and framing re-ignites interest in neural networks.
 
 **1987–1993** — Second AI Winter — The expert systems market collapses as maintenance costs balloon and limitations become clear. LISP machine companies fail. The AI industry loses most of its commercial funding for several years.
 
@@ -46,11 +46,11 @@ A reference timeline: what happened, when, and why it mattered. For the story co
 
 ## Late 1980s–1990s: Connectionism and statistical learning
 
-**1989** — Convolutional networks — Yann LeCun at Bell Labs applies convolutional neural networks to handwritten digit recognition. LeNet achieves state-of-the-art on the USPS zip code dataset. The ideas are correct; the hardware is not yet adequate.
+**1989** — Convolutional networks — Yann LeCun at Bell Labs applies convolutional neural networks (a network design that scans small patches of an image with the same learned filter, well suited to recognizing shapes wherever they appear) to handwritten digit recognition. LeNet achieves state-of-the-art on the USPS zip code dataset. The ideas are correct; the hardware is not yet adequate.
 
-**1997** — LSTM published — Hochreiter & Schmidhuber, "Long Short-Term Memory" (*Neural Computation*). The core ideas were developed in Hochreiter's 1991 diploma thesis but went unnoticed for years; the 1997 paper is when the field adopted LSTMs. Solves the vanishing gradient problem for recurrent networks, enabling sequence modeling over long time horizons.
+**1997** — LSTM published — Hochreiter & Schmidhuber, "Long Short-Term Memory" (*Neural Computation*). The core ideas were developed in Hochreiter's 1991 diploma thesis but went unnoticed for years; the 1997 paper is when the field adopted LSTMs. Recurrent networks (networks that process a sequence step by step, feeding each step's output back in as input to the next) had a problem where the learning signal shrank to nothing over long sequences, so early parts of a long input stopped influencing what the network learned — LSTM solves that "vanishing gradient" problem, enabling sequence modeling over long time horizons.
 
-**1995** — Support Vector Machines — Corinna Cortes and Vladimir Vapnik publish the SVM paper. SVMs and kernel methods dominate machine learning benchmarks through the 2000s, outperforming neural networks on most tasks with less compute. The theoretical foundations (VC dimension, structural risk minimization) give the field a rigorous grounding.
+**1995** — Support Vector Machines — Corinna Cortes and Vladimir Vapnik publish the SVM paper. SVMs (a method that finds the best dividing boundary between categories, then a variant called kernel methods that lets that boundary bend to fit non-straight patterns) dominate machine learning benchmarks through the 2000s, outperforming neural networks on most tasks with less compute. The theoretical foundations (VC dimension and structural risk minimization — mathematical tools for predicting how well a method will generalize to new data before you've even tested it) give the field a rigorous grounding.
 
 **1997** — Deep Blue beats Kasparov — IBM's Deep Blue defeats world chess champion Garry Kasparov 3.5–2.5 in a six-game match. The win is based on search and evaluation functions, not learning. The AI community is ambivalent: chess was supposed to prove intelligence; Deep Blue proves it is "just search."
 
@@ -64,11 +64,11 @@ A reference timeline: what happened, when, and why it mattered. For the story co
 
 **2001** — Wikipedia launches — Within a decade, Wikipedia provides a massive corpus of structured human knowledge in machine-readable form. Its influence on language model pretraining is enormous.
 
-**2006** — Hinton's deep belief networks — Geoffrey Hinton, Simon Osindero, and Yee-Whye Teh show that deep networks can be pre-trained layer-by-layer using restricted Boltzmann machines. Reignites interest in deep learning after a decade of SVM dominance.
+**2006** — Hinton's deep belief networks — Geoffrey Hinton, Simon Osindero, and Yee-Whye Teh show that deep networks can be pre-trained layer-by-layer using restricted Boltzmann machines — an earlier kind of network trained to reconstruct its own input, used here one layer at a time as a warm-start before the whole network is fine-tuned together. Reignites interest in deep learning after a decade of SVM dominance.
 
 **2009** — ImageNet — Fei-Fei Li and colleagues at Stanford release ImageNet: 14 million labeled images across 20,000 categories. The dataset that would make the deep learning revolution possible.
 
-**2009** — XGBoost precursors — Gradient boosted trees (Friedman, 2001) are refined throughout the decade. XGBoost is published by Chen & Guestrin in 2016, but the gradient boosting family dominates tabular ML competitions through this period.
+**2009** — XGBoost precursors — Gradient boosted trees (Friedman, 2001) — an ensemble method that builds many small decision trees in sequence, each one correcting the errors of the ones before it — are refined throughout the decade. XGBoost is published by Chen & Guestrin in 2016, but the gradient boosting family dominates tabular ML competitions through this period.
 
 ---
 
@@ -76,21 +76,21 @@ A reference timeline: what happened, when, and why it mattered. For the story co
 
 **2012** — AlexNet — Alex Krizhevsky, Ilya Sutskever, and Geoffrey Hinton win the ImageNet Large Scale Visual Recognition Challenge with a 15.3% top-5 error rate, compared to the second place's 26.2%. The gap is large enough that the field reroutes. GPUs, large datasets, and deep convolutional networks become the dominant paradigm overnight.
 
-**2013** — word2vec — Tomas Mikolov and colleagues at Google publish word2vec: dense vector embeddings of words trained on co-occurrence statistics. For the first time, words have geometric relationships — "king − man + woman ≈ queen." Transfer learning begins for NLP.
+**2013** — word2vec — Tomas Mikolov and colleagues at Google publish word2vec: it represents each word as a list of numbers (a "vector"), trained by learning which words tend to appear near which other words in real text ("co-occurrence statistics"). For the first time, words have geometric relationships — "king − man + woman ≈ queen." Transfer learning (reusing something learned on one task as a head start on another) begins for NLP.
 
 **2014** — GANs — Ian Goodfellow and colleagues introduce Generative Adversarial Networks. A generator network and a discriminator network compete; the generator learns to produce realistic samples. Launches a decade of generative modeling research.
 
-**2014** — Attention (seq2seq) — Bahdanau, Cho & Bengio publish the first attention mechanism for neural machine translation. Allows decoder to look back at the full encoder sequence rather than squeezing it through a single hidden state vector.
+**2014** — Attention (seq2seq) — Bahdanau, Cho & Bengio publish the first attention mechanism for neural machine translation: instead of a network reading the whole input sentence ("the encoder") and squeezing everything it learned into one fixed-size summary vector before the output-generating side ("the decoder") ever starts writing, attention lets the decoder look back at every part of the original sentence directly, each time it produces a new word.
 
 **2015** — ResNets — He, Zhang, Ren & Sun at Microsoft Research publish Deep Residual Networks, enabling training of 152-layer networks via residual connections. Win the 2015 ImageNet competition by a large margin. Residual connections become standard across virtually every deep architecture.
 
 **2016** — AlphaGo — DeepMind's AlphaGo defeats world Go champion Lee Sedol 4–1. Unlike Deep Blue, AlphaGo learns from human games and self-play using deep reinforcement learning. Go was supposed to be too complex for brute-force search; AlphaGo renders the argument moot.
 
-**2017** — "Attention Is All You Need" — Vaswani et al. at Google publish the Transformer architecture: attention mechanisms replace recurrence entirely. Faster to train, parallelizable, and eventually more capable. The most consequential ML paper of the decade.
+**2017** — "Attention Is All You Need" — Vaswani et al. at Google publish the Transformer architecture: attention mechanisms replace recurrence (the step-by-step, one-token-at-a-time processing of older networks) entirely, letting the whole input be processed at once instead of in sequence. Faster to train, parallelizable, and eventually more capable. The most consequential ML paper of the decade.
 
-**2018** — BERT — Google's BERT (Bidirectional Encoder Representations from Transformers) achieves state-of-the-art on eleven NLP tasks simultaneously through unsupervised pretraining on Wikipedia + BooksCorpus, followed by task-specific fine-tuning. Transfer learning for NLP becomes the dominant paradigm.
+**2018** — BERT — Google's BERT (Bidirectional Encoder Representations from Transformers) achieves state-of-the-art on eleven NLP tasks simultaneously. It's trained by hiding random words in real text and having the model guess them from the words on both sides ("bidirectional," and "unsupervised" because no human had to label anything) on Wikipedia + BooksCorpus, followed by fine-tuning it further for each specific task. Transfer learning for NLP becomes the dominant paradigm.
 
-**2018** — GPT-1 — OpenAI releases GPT (Generative Pre-trained Transformer). Unlike BERT's bidirectional encoding, GPT uses a causal decoder that predicts the next token. The architecture that eventually becomes GPT-4 and its successors.
+**2018** — GPT-1 — OpenAI releases GPT (Generative Pre-trained Transformer). Unlike BERT, which reads a whole passage at once to fill in blanks, GPT reads only what came before and predicts the next token, one word at a time, left to right — a "causal" decoder because each prediction can only depend on what came earlier, never later. The architecture that eventually becomes GPT-4 and its successors.
 
 **2019** — GPT-2 — OpenAI trains a 1.5B parameter autoregressive language model. The generated text is coherent enough that OpenAI initially withholds the full model, citing misuse risk. This decision is widely debated; the model is eventually released.
 
