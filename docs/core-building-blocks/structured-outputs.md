@@ -8,7 +8,7 @@ description: Getting reliable JSON, schemas, and typed data from language models
 
 ## What it is
 
-Structured outputs are the practice of constraining a model's generation to a specific format — typically JSON, YAML, or a typed schema — so that downstream code can parse and use the result without fragile string manipulation.
+Structured outputs are the practice of constraining a model's generation to a specific format — typically JSON or YAML (two standard, machine-readable text formats for structured data) or a typed schema (a template describing exactly what fields the output must have and what type each one is) — so that downstream code can parse and use the result without fragile string manipulation.
 
 A model that returns:
 ```json
@@ -22,7 +22,7 @@ The sentiment is negative. I'm fairly confident (around 91%). The review mention
 
 ## The problem it solves
 
-Language models generate text. Applications consume data. The gap between these two facts is where most production LLM systems break.
+Language models generate text. Applications consume data. The gap between these two facts is where most production LLM (large language model) systems break.
 
 The naive approach — prompt the model to "output JSON" and parse the result — fails in practice for several reasons: the model sometimes adds prose before or after the JSON block, field names drift, numeric strings appear instead of numbers, nested structures are inconsistently formatted, and required fields go missing on unusual inputs. Every one of these requires a special case in your parsing code, and special cases accumulate. After enough of them, you have a fragile parser that breaks on novel inputs.
 
@@ -37,6 +37,8 @@ JSON mode ensures valid JSON but not valid schema — the model can still omit f
 ### Schema-constrained generation (tool use)
 
 The more robust approach: define the output as a tool schema. The model is instructed to "call" the tool with arguments matching your schema, and the API enforces the types. (If you're not yet familiar with tool use, see [Function Calling](./function-calling) — in brief: tools let you define a typed schema that the API guarantees the model will populate.)
+
+The code below defines that schema, forces the model to "call" it, and gets back a JSON object guaranteed to match:
 
 ```python
 import anthropic
@@ -77,7 +79,7 @@ result = json.loads(response.content[0].input)
 
 ### Pydantic + Instructor
 
-The `instructor` library wraps the Anthropic and OpenAI clients to add Pydantic model validation with automatic retries. You define your output as a Pydantic model; instructor handles the schema, the tool call, parsing, validation, and retry logic:
+The `instructor` library wraps the Anthropic and OpenAI clients to add Pydantic (a Python library for defining the shape data must have, and having it checked automatically) model validation with automatic retries. You define your output as a Pydantic model; instructor handles the schema, the tool call, parsing, validation, and retry logic:
 
 ```python
 import anthropic
@@ -89,7 +91,7 @@ client = instructor.from_anthropic(anthropic.Anthropic())
 
 class SentimentResult(BaseModel):
     sentiment: Literal["positive", "negative", "neutral"]
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)  # ge/le: reject any value outside 0.0-1.0
     key_phrases: list[str]
     reasoning: str
 
@@ -223,7 +225,7 @@ The retry loop in instructor is underrated. Models fail schema validation more o
 
 **1. Schema hallucination.** The model produces values that pass schema validation but are factually wrong. A model can return `{"price": 0.01}` for a $99 item and Pydantic won't complain. Schema validation and factual accuracy are orthogonal problems.
 
-**2. Over-constrained enums.** A `category: Literal["billing", "technical", "account"]` that's missing "shipping" will cause the model to misclassify shipping tickets rather than flag them as uncovered. Add an `other` category with an explanation field for any classifier.
+**2. Over-constrained enums.** An enum — a field restricted to one of a fixed, named list of values, `category: Literal["billing", "technical", "account"]` here — that's missing "shipping" will cause the model to misclassify shipping tickets rather than flag them as uncovered. Add an `other` category with an explanation field for any classifier.
 
 **3. Retry amplification.** Instructor's retry loop is useful but masks systematic errors. If 30% of calls fail validation and retry succeeds, your schema or prompt is wrong. Log validation failures and audit the patterns.
 

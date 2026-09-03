@@ -8,9 +8,9 @@ description: Grounding model outputs in retrieved context — chunking strategie
 
 ## What it is
 
-RAG is a pattern: retrieve first, then generate. Rather than relying on knowledge baked into model weights at training time, you retrieve relevant documents from an external store at query time and inject them into the context window as evidence. The model then generates its response grounded in those documents.
+RAG is a pattern: retrieve first, then generate. Rather than relying on knowledge baked into model weights (the internal numbers a model learns during training) at training time, you retrieve relevant documents from an external store at query time and inject them into the context window (the block of text the model can see in one call) as evidence. The model then generates its response grounded in those documents.
 
-The two-stage structure is the key insight. Retrieval is a search problem — fast, deterministic, interpretable. Generation is a language problem — flexible, synthesizing, expressive. Combining them gives you an AI that can answer questions about your specific documents without the cost of training or fine-tuning.
+The two-stage structure is the key insight. Retrieval is a search problem — fast, deterministic, interpretable. Generation is a language problem — flexible, synthesizing, expressive. Combining them gives you an AI that can answer questions about your specific documents without the cost of training or fine-tuning (continuing to train the model on your own data).
 
 ## The problem it solves
 
@@ -55,10 +55,12 @@ flowchart TB
 
 Documents must be split into chunks before embedding. The chunking strategy determines what the model can retrieve — a bad split cuts a relevant passage in half and makes it unretrievable.
 
-**Fixed-size chunking**: split every N tokens with an overlap of M. Simple, predictable, language-agnostic. The overlap prevents context from being lost at boundaries.
+**Fixed-size chunking**: split every N tokens (roughly, words or word-fragments) with an overlap of M. Simple, predictable, language-agnostic. The overlap prevents context from being lost at boundaries.
 
 ```python
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+# LangChain: a widely used library of pre-built pieces for LLM applications,
+# including this text-splitting utility.
 
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=512,       # characters per chunk (LangChain default unit — NOT tokens)
@@ -91,7 +93,10 @@ embed_model = SentenceTransformer("BAAI/bge-small-en-v1.5")
 # Index documents
 embeddings = embed_model.encode(chunks, normalize_embeddings=True)
 d = embeddings.shape[1]
-index = faiss.IndexFlatIP(d)  # inner product = cosine similarity on normalized vectors
+index = faiss.IndexFlatIP(d)  # inner product: multiply matching numbers between two
+# vectors and add the results -- since these vectors are all rescaled to length 1
+# ("normalized") first, that sum ends up measuring the angle between them, same as
+# cosine similarity
 index.add(embeddings.astype("float32"))
 ```
 
@@ -107,7 +112,7 @@ retrieved_chunks = [chunks[i] for i in indices[0]]
 
 ### Reranking
 
-The top-k from ANN retrieval is an approximate nearest-neighbor match — it finds the chunks whose embeddings are closest to the query embedding, which correlates with relevance but isn't identical to it. A reranker (cross-encoder) takes each (query, chunk) pair and scores them jointly — meaning the query and document are concatenated and passed through a single model together, rather than encoded separately and compared via cosine similarity. This lets the model attend to interactions between query tokens and document tokens, capturing relevance signals that embedding similarity misses. The tradeoff: cross-encoders are much slower (one forward pass per candidate) and can't be pre-indexed, so they're only practical on the small top-k set returned by ANN retrieval.
+The top-k from ANN (Approximate Nearest Neighbor — a family of search algorithms, like FAISS above, that trade a little accuracy for a lot of speed at scale) retrieval is an approximate match — it finds the chunks whose embeddings are closest to the query embedding, which correlates with relevance but isn't identical to it. A reranker (cross-encoder) takes each (query, chunk) pair and scores them jointly — meaning the query and document are concatenated and passed through a single model together in one pass ("forward pass"), rather than encoded separately and compared via cosine similarity. This lets the model attend to interactions between query tokens and document tokens, capturing relevance signals that embedding similarity misses. The tradeoff: cross-encoders are much slower (one full model run per candidate) and can't be pre-indexed, so they're only practical on the small top-k set returned by ANN retrieval.
 
 ```python
 from sentence_transformers import CrossEncoder
