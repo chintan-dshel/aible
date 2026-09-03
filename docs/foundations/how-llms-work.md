@@ -8,7 +8,7 @@ description: "End-to-end: text in → tokenization → forward pass → logits �
 
 ## What it is
 
-A large language model (LLM) is a transformer-based neural network trained to predict the next token in a sequence. Fluent text generation, reasoning, and code synthesis emerge from pretraining on enough diverse data. Instruction following and safe behavior are added separately through fine-tuning (SFT) and alignment techniques (RLHF, DPO) — they do not emerge from pretraining alone.
+A large language model (LLM) is a transformer (a neural network design built around attention — letting every part of the input inform every other part directly, rather than passing information along step by step) trained to predict the next token (roughly, the next word or word-fragment) in a sequence. Fluent text generation, reasoning, and code synthesis emerge from pretraining (the initial, large-scale training pass on raw text) on enough diverse data. Instruction following and safe behavior are added separately through fine-tuning — continuing to train the model on a smaller, curated dataset of examples (SFT, supervised fine-tuning) — and alignment techniques that further train it to match human preferences (RLHF, DPO) — they do not emerge from pretraining alone.
 
 This page traces the complete path from "you type a message" to "the model responds," connecting the concepts covered individually in earlier pages into a single end-to-end picture.
 
@@ -45,7 +45,7 @@ The loop at the end is the key: each token generated is appended to the context,
 
 ### Step 1: Tokenization
 
-The raw input string is converted to a sequence of integer token IDs by the tokenizer. "What is the capital of France?" might tokenize to 8 tokens; "Quel est la capitale de la France?" might tokenize to 10 tokens (French is slightly less efficient in a vocabulary trained primarily on English text).
+The raw input string is converted to a sequence of integer token IDs by the tokenizer — each token being roughly a word or word-fragment, and its ID simply an arbitrary index into the model's fixed vocabulary list. "What is the capital of France?" might tokenize to 8 tokens; "Quel est la capitale de la France?" might tokenize to 10 tokens (French is slightly less efficient in a vocabulary trained primarily on English text).
 
 The tokenizer is a fixed, non-learned component. Its vocabulary was determined during model development and cannot be changed without retraining the model from scratch.
 
@@ -65,19 +65,19 @@ The model then generates the assistant's response autoregressively.
 
 Each token ID is converted to a $d_{\text{model}}$-dimensional dense vector via the embedding table — a matrix $E \in \mathbb{R}^{V \times d_{\text{model}}}$ that maps each of the $V$ vocabulary items to a learned vector. For Llama 3 8B: $V = 128{,}256$, $d_{\text{model}} = 4{,}096$.
 
-Positional information is added at this stage — either as a static positional encoding added to the embedding, or (more commonly in modern LLMs) as a rotation applied to the query and key vectors inside each attention layer (RoPE).
+The model also needs to know each token's position in the sequence, since attention on its own treats the input as an unordered set. That positional information is added at this stage — either as a fixed signal added directly to the embedding ("positional encoding"), or, more commonly in modern LLMs, as a rotation applied to the query and key vectors inside each attention layer (the two internal vectors attention uses to decide what's relevant to what — see the Attention Mechanism page) — a technique called RoPE.
 
 The result is a sequence of $n$ vectors, one per token, each carrying both content and positional information.
 
 ### Step 3: The forward pass
 
-The token embedding sequence passes through $N$ transformer blocks in sequence. Each block:
+The token embedding sequence passes through $N$ transformer blocks in sequence — each one refining every token's vector a bit further using the context around it. Each block:
 
-1. **LayerNorm** the input
-2. **Multi-head self-attention**: each token gathers context from all earlier tokens (causally masked in decoder-only models)
-3. **Residual add** the attention output to the block input
+1. **LayerNorm** the input — rescale each token's numbers to a consistent range, which keeps training stable as the signal passes through many stacked blocks.
+2. **Multi-head self-attention**: each token gathers context from all earlier tokens (causally masked in decoder-only models — the model is only allowed to look backward, never forward, so it can't cheat by seeing the answer it's about to generate).
+3. **Residual add** the attention output to the block input — add the attention step's output back onto its own input, rather than replacing it, so the original signal always has a direct path through.
 4. **LayerNorm** again
-5. **Feedforward network** (two linear layers with GELU): each token position transformed independently
+5. **Feedforward network** (two linear layers — matrix multiplications — with a smooth, nonlinear activation function called GELU in between): each token position transformed independently
 6. **Residual add** the feedforward output
 
 After $N$ blocks, each token's vector has been updated to reflect context from the entire preceding sequence. The final layer's representation for the last token in the sequence is particularly important — for decoder-only models, this is the state used to predict the next token.
@@ -93,21 +93,19 @@ The depth of a model's capability is tied to the depth of this stack:
 
 ### Step 4: Logit projection
 
-The transformer output for the last position is a $d_{\text{model}}$-dimensional vector. A final linear layer projects this into a $V$-dimensional vector of **logits** — one score per vocabulary item:
+The transformer output for the last position is a $d_{\text{model}}$-dimensional vector. A final linear layer projects this into a $V$-dimensional vector of **logits** — raw, not-yet-normalized scores, one per vocabulary item, where the logit for token $k$ is proportional to how much the model expects token $k$ to be the next token in this context:
 
 $$\text{logits} = h_{\text{last}} \cdot W_{\text{unembed}}^\top$$
 
-where $W_{\text{unembed}} \in \mathbb{R}^{V \times d_{\text{model}}}$ — in many models, this is literally the transpose of the embedding table (weight tying), saving $V \times d_{\text{model}}$ parameters.
-
-The logit for token $k$ is proportional to how much the model expects token $k$ to be the next token in this context.
+where $W_{\text{unembed}} \in \mathbb{R}^{V \times d_{\text{model}}}$ — in many models, this is literally the transpose (rows and columns swapped) of the embedding table (weight tying), saving $V \times d_{\text{model}}$ parameters.
 
 ### Step 5: Sampling
 
-Logits are converted to probabilities via softmax, then a token is sampled:
+Logits are converted to probabilities via softmax — turning raw scores into a set of positive numbers that add up to 1, so they behave like genuine odds — then a token is sampled:
 
 $$P(w_k) = \frac{e^{z_k / T}}{\sum_j e^{z_j / T}}$$
 
-where $T$ is the temperature. At $T = 1$: sample from the trained distribution. At $T \to 0$: always take the argmax (greedy decoding). At $T > 1$: flatten the distribution, increasing randomness and creativity at the cost of coherence.
+where $T$ is the temperature, a knob controlling how much randomness to inject. At $T = 1$: sample from the trained distribution. At $T \to 0$: always take the argmax (greedy decoding). At $T > 1$: flatten the distribution, increasing randomness and creativity at the cost of coherence.
 
 **Top-p (nucleus) sampling**: after computing probabilities, sort tokens by probability descending and keep only the smallest set whose cumulative probability exceeds $p$ (typically 0.9 or 0.95). Sample from this set. This prevents sampling from the long tail of very unlikely tokens while preserving diversity among plausible completions.
 
@@ -117,7 +115,7 @@ The sampled token ID is decoded back to a string fragment and appended to the ou
 
 Steps 2–5 repeat, with the newly generated token appended to the context. The model re-runs the forward pass over the full context to predict the next token.
 
-The KV cache optimization: instead of recomputing attention for all previous tokens at every step, the key and value vectors are cached after each forward pass. Each new step only computes attention for the new token against cached keys and values. This reduces per-step compute from $O(n^2)$ to $O(n)$ for the incremental generation — but the cache grows linearly with sequence length and consumes significant GPU memory.
+The KV cache optimization: instead of recomputing attention for all previous tokens at every step, the key and value vectors — the internal representations attention uses to decide relevance, from the Attention Mechanism page — are cached after each forward pass. Each new step only computes attention for the new token against cached keys and values. Without the cache, generating each new token would mean redoing work proportional to the whole conversation so far, and that cost would itself grow with length — a 2,000-token reply would cost roughly 4x the total work of a 1,000-token one, not 2x. With the cache, each new token costs roughly the same fixed amount regardless of how long the conversation already is. The trade-off: the cache itself grows linearly with sequence length and consumes significant GPU memory.
 
 Generation continues until:
 - The model samples the EOS (end-of-sequence) token
@@ -224,6 +222,8 @@ This page is reference material — the "when to use" framing applies to differe
 
 #### When to run inference locally
 
+("Inference" is the term for actually using a trained model to produce an answer, as opposed to training it — everything from Step 1 onward on this page is inference.)
+
 - Privacy-sensitive data that cannot leave your infrastructure
 - Cost-sensitive, high-volume workloads where API costs exceed hosting costs
 - Latency requirements that can't tolerate network round-trips
@@ -238,7 +238,7 @@ This page is reference material — the "when to use" framing applies to differe
 
 #### The context window as the primary design constraint
 
-Every application built on an LLM is fundamentally constrained by the context window. When the conversation + retrieved context + system prompt + expected response exceeds the window, you need chunking, summarization, or retrieval-augmented generation. Design for this constraint from the start — retrofitting it is painful.
+Every application built on an LLM is fundamentally constrained by the context window. When the conversation + retrieved context + system prompt + expected response exceeds the window, you need chunking (splitting a long document into smaller pieces that fit), summarization, or retrieval-augmented generation (RAG — searching a larger store of documents and pulling in just the relevant pieces, rather than sending everything). Design for this constraint from the start — retrofitting it is painful.
 
 ## Main tools and libraries
 
