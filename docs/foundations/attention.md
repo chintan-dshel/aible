@@ -35,7 +35,7 @@ Two problems with this architecture:
 
 **The information bottleneck.** By the time the model processes token 100, the hidden state must still somehow carry relevant information from token 1. For long sequences, early context gets squeezed out. A model translating a 200-word sentence can "forget" the subject before it reaches the verb.
 
-**Sequential computation.** Hidden state $h_t$ depends on $h_{t-1}$, which depends on $h_{t-2}$. You cannot compute $h_{50}$ until $h_{49}$ is ready. Training is inherently serial — no parallelism, slow.
+**Sequential computation.** Hidden state $h_t$ depends on $h_{t-1}$, which depends on $h_{t-2}$. You cannot compute $h_{50}$ until $h_{49}$ is ready. Training is inherently serial — no parallelism (many calculations running at the same time on the same hardware), so it stays slow no matter how much hardware you throw at it.
 
 Attention solves both:
 - Every output position can directly query *any* input position — no bottleneck.
@@ -50,13 +50,13 @@ This is the core reason transformers displaced RNNs and LSTMs for most language 
 Think of a reference library. You walk in with a question — *the query* ($Q$). Each book has an index of the topics it covers — *the keys* ($K$). You scan the index to find which books are relevant to your question, then read the relevant sections — *the values* ($V$). You leave with a synthesis, weighted by how relevant each book was.
 
 Attention works exactly this way, except:
-- Queries, keys, and values are all dense vectors derived from the same input sequence.
-- "Relevance" is measured by dot-product similarity.
+- Queries, keys, and values are all dense vectors — lists of numbers — derived from the same input sequence.
+- "Relevance" is measured by dot-product similarity: multiply two vectors' matching numbers together and add up the results — the bigger that sum, the more the two vectors point in the same direction.
 - You don't pick one book; you take a weighted blend of *all* of them, with weights learned from data.
 
 ### The three projections
 
-For every token in the input sequence, the model derives three vectors by multiplying the token's embedding through three learned weight matrices:
+For every token in the input sequence, the model derives three vectors by multiplying the token's embedding (its own list of numbers, learned to represent what that token means) through three learned weight matrices — grids of numbers that transform one vector into another:
 
 $$Q = X W_Q \qquad K = X W_K \qquad V = X W_V$$
 
@@ -70,11 +70,11 @@ Every symbol earns its place. Let's take them in order:
 
 **$QK^T \in \mathbb{R}^{n \times n}$** — the raw score matrix. Entry $(i, j)$ is the dot product of query vector $i$ and key vector $j$: how much token $i$ "wants" to attend to token $j$. You get an $n \times n$ grid of raw relevance scores — every token scored against every other token simultaneously.
 
-**$/ \sqrt{d_k}$** — the scaling factor. If $d_k$-dimensional vectors have unit-variance components, their dot product has variance $d_k$. Without scaling, the standard deviation of raw scores grows as $\sqrt{d_k}$ — so at $d_k = 512$, scores have a standard deviation roughly 8× larger than at $d_k = 8$ (since $\sqrt{512/8} = 8$). Large scores push softmax into near-one-hot territory where gradients nearly vanish. Dividing by $\sqrt{d_k}$ restores unit variance regardless of $d_k$.
+**$/ \sqrt{d_k}$** — the scaling factor. In plain terms: as the vectors get longer, the raw scores from the previous step tend to get bigger too, just from having more numbers to add up — not because the tokens are actually more related. Left unchecked, those inflated scores make softmax (the next step) pick one winner almost exclusively and ignore everything else, which stalls learning. Dividing by $\sqrt{d_k}$ cancels out that length-driven inflation, regardless of how long the vectors are. Concretely: at $d_k = 512$, scores would otherwise run roughly 8× larger than at $d_k = 8$ (since $\sqrt{512/8} = 8$).
 
 **$\text{softmax}(\cdot)$** — applied row-wise. Each row $i$ becomes a probability distribution over all $n$ positions, summing to 1. These are the attention weights: "given token $i$'s query, what fraction of each token's value should I incorporate?"
 
-**$\times V$** — the weighted sum. For each output position $i$, you take the convex combination of all value vectors, weighted by the softmax scores. Output position $i$ is a blend of every token's information — mostly the ones it found relevant, a little of everyone else.
+**$\times V$** — the weighted sum. For each output position $i$, you blend all the value vectors together using the softmax scores as the mix ratios — a "convex combination," meaning the weights are all non-negative and add up to 1, so it's a genuine blend, never an extrapolation past any single input. Output position $i$ is a blend of every token's information — mostly the ones it found relevant, a little of everyone else.
 
 ### Data flow
 
@@ -122,6 +122,8 @@ flowchart LR
 One set of Q, K, V projections specialises in one type of relationship. The relationship "subject governs verb" is structurally different from "pronoun refers to noun." Multi-head attention runs $h$ independent attention computations in parallel, each with its own $W_Q^{(i)}, W_K^{(i)}, W_V^{(i)}$:
 
 $$\text{MultiHead}(Q, K, V) = \text{Concat}\!\left(\text{head}_1,\, \ldots,\, \text{head}_h\right) W^O$$
+
+("Concat," short for concatenation, just means the $h$ heads' output vectors are stuck end to end into one longer vector before the final projection below mixes them back down.)
 $$\text{head}_i = \text{Attention}\!\left(XW_i^Q,\; XW_i^K,\; XW_i^V\right)$$
 
 $W^O \in \mathbb{R}^{hd_v \times d_{\text{model}}}$ is a learned output projection that mixes the concatenated heads back into the model's working dimension. To keep total compute constant, each head uses $d_k = d_{\text{model}} / h$ dimensions. With $h = 8$ heads and $d_{\text{model}} = 512$, each head has $d_k = 64$ — the same total parameter count as one 512-dimensional head, but eight different perspectives on the input.
@@ -139,6 +141,8 @@ The heatmap below shows approximate attention weights for the "it" token looking
 In this illustrative example, "animal" captures the dominant fraction of attention weight (the deep blue cell). The model learned — through training on language prediction alone — that something that "was too tired" is more likely to be an animal than a street. No coreference rule was written; it emerged from the loss. (Exact weights vary by model, layer, and head — treat the heatmap as a demonstration, not a measurement.)
 
 #### Minimal implementation from scratch
+
+The function below is the equation above, in code: it multiplies queries and keys to get raw scores, scales them, optionally hides future tokens from the model (the "causal mask," so a model generating text left-to-right can't cheat by looking ahead), turns the scores into weights that sum to 1, and blends the value vectors by those weights.
 
 ```python
 import torch
@@ -175,7 +179,7 @@ print(weights.sum(dim=-1))              # tensor([[[1., 1., 1., 1., 1.]]])
 
 ## When to use it / when not to
 
-**Self-attention** (Q, K, V all from the same sequence) is the backbone of encoder-only models (BERT, RoBERTa) and decoder-only models (GPT, Claude). **Cross-attention** (Q from the target sequence, K and V from the source sequence) is used in encoder-decoder architectures for translation and summarisation — the decoder queries the encoder's output at each generation step.
+**Self-attention** (Q, K, V all from the same sequence) is the backbone of encoder-only models (BERT, RoBERTa) and decoder-only models (GPT, Claude) — "encoder" and "decoder" here just name which half of the original translation-style architecture a model kept: the half that reads and understands input, or the half that generates output word by word. **Cross-attention** (Q from the target sequence, K and V from the source sequence) is used in encoder-decoder architectures for translation and summarisation — the decoder queries the encoder's output at each generation step.
 
 The hard constraint is cost. Attention is $O(n^2)$ in both time and memory:
 
@@ -188,9 +192,9 @@ The hard constraint is cost. Attention is $O(n^2)$ in both time and memory:
 
 #### Alternatives for very long contexts
 
-- **FlashAttention** — identical math, rewritten to be IO-aware. Never materialises the full $n \times n$ matrix in HBM; operates in tiles within SRAM. 2–4× faster, dramatically less memory. The default choice for any serious implementation.
-- **Sliding window / local attention** (Longformer, Mistral) — each token attends only to a window of $w$ neighbours, $O(n \cdot w)$. A few global tokens attend everywhere.
-- **State space models** (Mamba, RWKV) — $O(n)$ in sequence length via recurrence; trade some cross-position expressiveness for linear scaling.
+- **FlashAttention** — identical math, restructured around where the GPU's memory actually is fast versus slow ("IO-aware"; see "My take" below for what that means). Never writes the full $n \times n$ matrix out to the GPU's large, slower memory (HBM); keeps it in the GPU's small, very fast on-chip memory (SRAM) instead. 2–4× faster, dramatically less memory. The default choice for any serious implementation.
+- **Sliding window / local attention** (Longformer, Mistral) — each token attends only to a window of $w$ neighbours instead of every other token, so cost grows with $n \cdot w$ (window size times sequence length) rather than $n^2$. A few global tokens attend everywhere.
+- **State space models** (Mamba, RWKV) — process the sequence step by step like the older recurrent networks did, which makes cost grow linearly with length ($O(n)$) instead of quadratically; the trade-off is some loss of the "look at anything, anytime" flexibility full attention gives you.
 - **Sparse attention** (BigBird) — attend to a learned or fixed subset of positions.
 
 :::tip[My take]
@@ -213,17 +217,17 @@ This pattern — redesigning an algorithm around the memory hierarchy rather tha
 
 ## Common failure modes and gotchas
 
-**1. Quadratic OOM.** Running attention on sequences longer than your GPU can hold produces a cryptic CUDA out-of-memory error, not a helpful message. The rule: sequence length squared × batch size × number of heads must fit in VRAM. Check before you train.
+**1. Quadratic OOM.** Running attention on sequences longer than your GPU can hold produces a cryptic CUDA out-of-memory error, not a helpful message. The rule: sequence length squared × batch size (how many examples are processed together in one pass) × number of heads must fit in VRAM. Check before you train.
 
 **2. Attention sinks.** In autoregressive (GPT-style) models, the initial token — often a BOS token — accumulates disproportionately high attention weight across every layer and head, even when it is semantically irrelevant. This is a structural property of causal softmax on long sequences, not a bug in your implementation. Xiao et al., "Efficient Streaming Language Models with Attention Sinks" (2023, arXiv 2309.17453) documents this and shows how to exploit it for streaming inference.
 
-**3. Length extrapolation.** Models trained at context length 2,048 behave unpredictably at 4,096. Absolute sinusoidal positional encodings (the original transformer design) don't extrapolate — the model has never seen those position indices. Relative encodings (RoPE, ALiBi) generalise better but still degrade beyond training length. RoPE can be extended post-training via techniques like YaRN (positional interpolation); ALiBi uses a different mechanism and is not extended via YaRN.
+**3. Length extrapolation.** Models trained at context length 2,048 behave unpredictably at 4,096. The model needs some way to know each token's position in the sequence, and the original transformer design (a fixed wave-pattern signal added to each token, called a sinusoidal positional encoding) simply has nothing to say about a position it never saw during training — it doesn't extrapolate. Newer schemes (RoPE, ALiBi) encode position *relative to* other tokens instead of as an absolute count, which generalises better but still degrades beyond training length. Both have their own techniques for stretching further post-training, but the fixes aren't interchangeable between them.
 
 **4. Head redundancy.** Multiple heads in the same layer sometimes converge to learn the same pattern. You pay the compute cost of $h$ heads but get the expressiveness of fewer. Usually a symptom of training instability, insufficient regularisation, or the model having more capacity than the task requires.
 
 **5. Attention ≠ explanation.** High attention weight from token A to token B does not mean B causally explains A's output. Jain & Wallace, "Attention is not Explanation" (NAACL 2019, arXiv 1902.10186) showed that you can often substitute uniform or even adversarially chosen attention weights without changing model predictions. Do not use attention maps to explain model decisions in production.
 
-**6. KV cache memory exhaustion at inference.** During autoregressive generation, the model caches each token's key and value vectors so it doesn't recompute attention over the entire history at every step. This cache grows linearly with sequence length and number of layers — for a long conversation with a large model, the KV cache alone can consume tens of gigabytes. In production serving, KV cache pressure is typically the memory bottleneck, not model weights. Strategies: quantise the cache (8-bit KV is common), use sliding-window attention to bound cache size, or implement paged attention (as in vLLM) to share cache memory across requests.
+**6. KV cache memory exhaustion at inference.** During autoregressive generation, the model caches each token's key and value vectors so it doesn't recompute attention over the entire history at every step. This cache grows linearly with sequence length and number of layers — for a long conversation with a large model, the KV cache alone can consume tens of gigabytes. In production serving, KV cache pressure is typically the memory bottleneck, not model weights. Strategies: quantise the cache (store each number with fewer bits — 8-bit KV is common), use sliding-window attention to bound cache size, or implement paged attention (splitting the cache into fixed-size chunks that can be shared and reused across requests, as vLLM does, instead of reserving one large contiguous block per request).
 
 ## Project ideas
 

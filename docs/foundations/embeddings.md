@@ -8,7 +8,7 @@ description: From word2vec to contextual embeddings — what the geometry of hig
 
 ## What it is
 
-An embedding is a dense, low-dimensional vector representation of a discrete object — a word, a sentence, an image, a user, a product. The vector encodes meaning as geometry: similar things are close together in the embedding space; dissimilar things are far apart.
+An embedding is a dense, low-dimensional vector — a short list of numbers — representation of a discrete object: a word, a sentence, an image, a user, a product. The vector encodes meaning as geometry: similar things are close together in the embedding space; dissimilar things are far apart.
 
 The key shift: instead of representing a word as a one-hot vector (a 50,000-dimensional vector with a single 1 and 49,999 zeros — no structure, no similarity), you represent it as a 300- or 768-dimensional dense vector where the distances and directions encode semantic relationships.
 
@@ -16,7 +16,7 @@ The key shift: instead of representing a word as a one-hot vector (a 50,000-dime
 
 ## The problem it solves
 
-Discrete symbols are opaque to learning algorithms. The token ID for "dog" (say, 5284) tells the model nothing about its relationship to "cat" (31,092) or "puppy" (19,873). Every word is equally distant from every other word in one-hot space.
+Discrete symbols are opaque to learning algorithms. The token ID — the arbitrary integer a tokenizer assigns each word or word-fragment — for "dog" (say, 5284) tells the model nothing about its relationship to "cat" (31,092) or "puppy" (19,873). Every word is equally distant from every other word in one-hot space.
 
 Embeddings give the model a continuous, structured space in which to work:
 
@@ -45,7 +45,7 @@ Word2vec (Mikolov et al., 2013) trains embeddings by prediction. Two variants:
 **CBOW (Continuous Bag of Words)**: predict the center word from its context words.
 **Skip-gram**: predict the context words from the center word.
 
-Neither task is the end goal. The end goal is the weight matrix that results from solving these tasks on billions of words — a matrix where words that appear in similar contexts end up with similar vectors.
+Neither task is the end goal. The end goal is the weight matrix — the grid of learned numbers the network built in order to get good at that prediction task — that results from solving these tasks on billions of words: a matrix where words that appear in similar contexts end up with similar vectors.
 
 The intuition: "dog" and "cat" appear in similar sentences ("my [pet] is sick," "I fed the [animal]," "she walked her [dog/cat]"). After training on enough of these, their vectors converge toward similar regions of the space.
 
@@ -53,11 +53,11 @@ The full equation for skip-gram: maximize
 
 $$\frac{1}{T} \sum_{t=1}^{T} \sum_{-c \leq j \leq c,\, j \neq 0} \log P(w_{t+j} \mid w_t)$$
 
-where $P(w_O \mid w_I) = \frac{\exp(v_{w_O}^{\prime\intercal} v_{w_I})}{\sum_{w=1}^{W} \exp(v_w^{\prime\intercal} v_{w_I})}$ — a softmax over the entire vocabulary. In practice, negative sampling approximates this efficiently.
+where $P(w_O \mid w_I) = \frac{\exp(v_{w_O}^{\prime\intercal} v_{w_I})}{\sum_{w=1}^{W} \exp(v_w^{\prime\intercal} v_{w_I})}$ — a softmax over the entire vocabulary, turning raw scores across every possible word into a probability distribution that sums to 1. Computing that sum over the whole vocabulary for every training step is expensive, so in practice, negative sampling — comparing the correct word against just a handful of random wrong ones each step, instead of the entire vocabulary — approximates this efficiently.
 
 ### GloVe and FastText
 
-**GloVe** (Pennington et al., 2014) factorizes a global word-word co-occurrence matrix rather than doing local window prediction. Produces similar quality embeddings; the training objective has a cleaner statistical interpretation.
+**GloVe** (Pennington et al., 2014) factorizes a global word-word co-occurrence matrix — starts from one big table of how often every word appears near every other word across the whole corpus, then finds a compact set of vectors that reproduces those counts — rather than doing local window prediction like word2vec. Produces similar quality embeddings; the training objective has a cleaner statistical interpretation (it's derived directly from word-count ratios, not from a prediction task standing in for them).
 
 **FastText** (Bojanowski et al., 2017) extends word2vec to subword units — "running" is represented as the sum of embeddings for "run," "runn," "runni," "running." This makes it robust to morphological variation and handles out-of-vocabulary words by decomposing them into known subwords.
 
@@ -65,7 +65,7 @@ where $P(w_O \mid w_I) = \frac{\exp(v_{w_O}^{\prime\intercal} v_{w_I})}{\sum_{w=
 
 Static embeddings have a fatal limitation: one vector per word, regardless of context. "Bank" in "river bank" gets the same vector as "bank" in "bank account."
 
-Contextual embeddings solve this by running a full transformer forward pass and using the hidden states as the embedding. The same word gets a different vector depending on every other word in its context.
+Contextual embeddings solve this by running the input through a full transformer — one complete pass through the network, called a "forward pass" — and using its internal, in-progress representations (the "hidden states") as the embedding, instead of looking up a fixed vector from a table. The same word gets a different vector depending on every other word in its context.
 
 ```mermaid
 flowchart TB
@@ -85,31 +85,31 @@ flowchart TB
     end
 ```
 
-BERT's hidden states are the canonical contextual embeddings for text. For production use, **sentence-transformers** (Reimers & Gurevych, 2019) fine-tunes a BERT-style model specifically to produce meaningful sentence-level embeddings via a siamese network trained on semantic similarity tasks.
+BERT's hidden states are the canonical contextual embeddings for text. For production use, **sentence-transformers** (Reimers & Gurevych, 2019) fine-tunes (continues training, on a smaller, targeted dataset) a BERT-style model specifically to produce meaningful sentence-level embeddings via a siamese network — two copies of the same model, sharing the same weights, each processing one of a pair of sentences, so the two results can be compared directly — trained on semantic similarity tasks.
 
 ### Embedding geometry
 
 High-dimensional embedding spaces have counterintuitive geometry:
 
-**Cosine similarity**, not Euclidean distance, is the standard measure:
+**Cosine similarity**, not Euclidean distance (straight-line distance, as the crow flies), is the standard measure:
 
 $$\text{similarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|}$$
 
-This is rotation-invariant — two vectors pointing in the same direction are similar regardless of their magnitude. Dot product (without normalization) is useful when magnitude encodes relevance score.
+In plain terms: it measures the angle between two vectors, not how long they are. This is what "rotation-invariant" means here — two vectors pointing in the same direction are similar regardless of their magnitude (length). Dot product (without normalization, meaning the vectors' original lengths are left as-is) is useful when magnitude encodes relevance score.
 
-**The curse of dimensionality**: in very high-dimensional spaces, most random vectors are nearly orthogonal to each other. Meaningful structure lives in a much lower-dimensional subspace. This is why PCA and t-SNE (for visualization) find meaningful 2D projections even from 768-dimensional BERT embeddings — the data actually lies near a lower-dimensional manifold.
+**The curse of dimensionality**: when a vector has hundreds of numbers instead of two or three, most of the space it could occupy turns out to be nearly empty — two random vectors are almost always close to perpendicular to each other ("orthogonal"), simply as a consequence of having so many dimensions to spread across, not because they're meaningfully unrelated. The vectors that actually come from real data cluster inside a much smaller, lower-dimensional region of that vast space (a "manifold" — think of a crumpled 2D sheet of paper sitting inside 3D space). This is why PCA and t-SNE — two different techniques for visualization, both of which compress a high-dimensional vector down to 2D for plotting while preserving as much of its real structure as possible — find meaningful 2D projections even from 768-dimensional BERT embeddings.
 
-**Nearest neighbor search**: finding the closest embedding to a query vector is the core operation in semantic search and retrieval-augmented generation. Exact search is $O(N \cdot d)$ per query — impractical at billion-scale. Approximate nearest neighbor (ANN) algorithms (HNSW, IVF, ScaNN) trade a small accuracy loss for orders-of-magnitude speedup.
+**Nearest neighbor search**: finding the closest embedding to a query vector is the core operation in semantic search and retrieval-augmented generation (RAG — retrieving relevant text and handing it to a model as context before it answers). Checking every single stored vector one by one ("exact search") costs more, the more vectors you have and the longer each one is — at billion-scale, that's too slow to be practical. Approximate nearest neighbor (ANN) algorithms — several competing methods exist, with names like HNSW, IVF, and ScaNN, each organizing the vectors differently to avoid checking all of them — trade a small accuracy loss for orders-of-magnitude speedup.
 
 ### Embedding models for retrieval
 
-Not all contextual embeddings are equal for retrieval. BERT-base embeddings pooled from the last layer perform poorly on semantic search — the model was trained for masked token prediction, not for producing good sentence-level representations.
+Not all contextual embeddings are equal for retrieval. BERT-base embeddings pooled from the last layer (averaged or otherwise combined across all the token vectors from BERT's final layer, into one vector for the whole sentence) perform poorly on semantic search — the model was trained for masked token prediction (guessing a word that's been hidden from the middle of a sentence), not for producing good sentence-level representations.
 
-Purpose-built embedding models are trained on (query, relevant passage) pairs using contrastive loss:
+Purpose-built embedding models are trained on (query, relevant passage) pairs using contrastive loss — pull the query's vector close to the vector of a passage that actually answers it, and push it away from passages that don't:
 
 $$\mathcal{L}_{\text{contrastive}} = -\log \frac{e^{\text{sim}(q, p^+)/\tau}}{e^{\text{sim}(q, p^+)/\tau} + \sum_i e^{\text{sim}(q, p_i^-)/\tau}}$$
 
-Pull the query close to relevant passages, push it away from irrelevant ones. The temperature $\tau$ controls how sharply the distribution concentrates. State-of-the-art retrieval models (E5, GTE, text-embedding-3-large) are trained this way on hundreds of millions of pairs.
+The temperature $\tau$ controls how sharply the distribution concentrates. State-of-the-art retrieval models (E5, GTE, text-embedding-3-large) are trained this way on hundreds of millions of pairs.
 
 ## Concrete example
 
@@ -147,7 +147,7 @@ import faiss
 
 # Build an exact index over 10,000 passage embeddings
 dim = embeddings.shape[1]
-index = faiss.IndexFlatIP(dim)       # inner product (cosine after L2 normalisation)
+index = faiss.IndexFlatIP(dim)       # inner product (cosine, once vectors are rescaled to length 1 -- "L2 normalisation")
 
 passage_embeddings = model.encode(passages, normalize_embeddings=True)
 index.add(passage_embeddings)
@@ -171,11 +171,11 @@ distances, indices = index.search(query, k=5)
 
 - Your domain is highly specialized (medical, legal, scientific): general-purpose embeddings may not capture domain-specific semantics well; consider fine-tuning an embedding model on domain pairs
 - Your queries and documents are very different in length: embedding models trained on similar-length pairs often perform poorly on query-vs-long-document tasks (use chunking + re-ranking)
-- You need exact keyword matching: embeddings are soft; "GDPR Article 17" may not retrieve documents that contain exactly that string. Hybrid search (BM25 + dense retrieval) handles both
+- You need exact keyword matching: embeddings are soft; "GDPR Article 17" may not retrieve documents that contain exactly that string. Hybrid search — combining BM25 (a classic keyword-matching ranking algorithm, still hard to beat for exact terms) with dense retrieval (the embedding-based search this page is about) — handles both
 
 #### Choosing an embedding model
 
-For English text: `text-embedding-3-small` (OpenAI) or `all-MiniLM-L6-v2` (free, fast, good quality) for quick starts. For production retrieval: check the MTEB leaderboard (Hugging Face) — it benchmarks embedding models across retrieval, clustering, and similarity tasks.
+For English text: `text-embedding-3-small` (OpenAI) or `all-MiniLM-L6-v2` (free, fast, good quality) for quick starts. For production retrieval: check the MTEB (Massive Text Embedding Benchmark) leaderboard (Hugging Face) — it benchmarks embedding models across retrieval, clustering, and similarity tasks.
 
 ## Main tools and libraries
 

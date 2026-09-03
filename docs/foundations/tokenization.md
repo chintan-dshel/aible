@@ -20,7 +20,7 @@ Language models operate on sequences of integers (token IDs), not raw text. The 
 
 **Efficiency**: fewer tokens per piece of text means the model processes more content per context window. "Tokenization" as one token is more efficient than ["Token", "ization"] as two.
 
-**Vocabulary size**: large vocabularies give the model more atomic units to work with but increase the size of the embedding table and the final projection layer (both $V \times d_{\text{model}}$ matrices). Typical range: 30,000–150,000.
+**Vocabulary size**: large vocabularies give the model more atomic units to work with but increase the size of the embedding table (the lookup grid that turns each token ID into a vector) and the final projection layer (the reverse step, turning the model's internal representation back into a score for every possible next token) — both $V \times d_{\text{model}}$ matrices. Typical range: 30,000–150,000.
 
 Character-level tokenization maximizes coverage (every Unicode character is representable) but is maximally inefficient — a typical English sentence becomes 5× as many tokens. Word-level tokenization is efficient for common words but fails on rare words and requires an enormous vocabulary to cover a language. Subword tokenization is the compromise that most modern LLMs use.
 
@@ -56,13 +56,13 @@ GPT-2 uses BPE with a byte-level fallback — it starts with the 256 possible by
 
 ### WordPiece
 
-WordPiece (used by BERT) is similar to BPE but chooses merges that maximize the likelihood of the training corpus under the language model, rather than the raw pair frequency. In practice the resulting vocabularies are similar; WordPiece tends to be slightly better at keeping common morphological boundaries (prefixes, suffixes) intact.
+WordPiece (used by BERT — Bidirectional Encoder Representations from Transformers, a model trained to fill in blanked-out words using context from both directions) is similar to BPE but chooses merges that make the training text as probable as possible under the model being trained, rather than just picking whichever pair appears together most often. In practice the resulting vocabularies are similar; WordPiece tends to be slightly better at keeping common morphological boundaries (prefixes, suffixes) intact.
 
-BERT uses `[CLS]` (classification token prepended to every input) and `[SEP]` (separator token between segments). These are special tokens added to the vocabulary and serve as structural signals — `[CLS]` marks the sequence boundary for classification heads; `[SEP]` marks segment boundaries. They are not positional signals; BERT uses separate learned positional embeddings for position.
+BERT uses `[CLS]` (classification token prepended to every input) and `[SEP]` (separator token between segments). These are special tokens added to the vocabulary and serve as structural signals — `[CLS]` marks the sequence boundary for classification heads (a small additional layer trained to read that one token's final vector and output a label, like "positive" or "negative"); `[SEP]` marks segment boundaries. They are not positional signals; BERT uses separate learned positional embeddings for position.
 
 ### Unigram Language Model (SentencePiece)
 
-Unigram tokenization (Kudo, 2018) starts from a large candidate vocabulary and iteratively removes tokens whose removal increases corpus log-probability the least. The result is a probabilistic tokenizer — the same string can be tokenized in multiple ways, each with an associated probability. SentencePiece implements both BPE and Unigram and is language-agnostic: it treats the input as a sequence of Unicode characters without pre-tokenization by spaces, making it suitable for languages like Japanese and Chinese that don't use word-boundary whitespace.
+Unigram tokenization (Kudo, 2018) starts from a large candidate vocabulary and iteratively removes whichever tokens hurt the model's ability to predict the training text the least if they were gone. The result is a probabilistic tokenizer — the same string can be tokenized in multiple ways, each with an associated probability. SentencePiece implements both BPE and Unigram and is language-agnostic: it treats the input as a sequence of Unicode characters without pre-tokenization by spaces, making it suitable for languages like Japanese and Chinese that don't use word-boundary whitespace.
 
 Llama and Llama 2 use SentencePiece with BPE and a vocabulary of 32,000 tokens. Llama 3 expanded to 128,256 tokens to improve multilingual coverage.
 
@@ -90,7 +90,7 @@ Tokenizers define special tokens that carry structural meaning:
 | `[CLS]` | BERT-style classification anchor — the model is trained to summarize the sequence into this token's representation |
 | `[SEP]` | Separator between two segments in BERT-style inputs |
 | <code>&lt;&#124;endoftext&#124;&gt;</code> | GPT-2/3 document boundary token |
-| <code>&lt;&#124;im_start&#124;&gt;</code> / <code>&lt;&#124;im_end&#124;&gt;</code> | Chat message delimiters in instruction-tuned GPT models |
+| <code>&lt;&#124;im_start&#124;&gt;</code> / <code>&lt;&#124;im_end&#124;&gt;</code> | Chat message delimiters in instruction-tuned (fine-tuned specifically to follow conversational instructions, rather than just complete text) GPT models |
 
 Chat models add role-specific tokens to distinguish user, assistant, and system content. These structural tokens tell the model where it is in a conversation — their exact form varies by model family.
 
@@ -156,7 +156,7 @@ Tokenization isn't optional — every language model has a tokenizer baked in. T
 
 **Training a model from scratch**: choose a tokenizer that matches your use case. For code-heavy workloads, ensure the tokenizer doesn't split common programming constructs inefficiently. For multilingual use, prefer a larger vocabulary or a byte-level tokenizer. Train on a corpus that represents your target distribution.
 
-**Fine-tuning a pretrained model**: you're stuck with the base model's tokenizer. No changes possible without retraining from scratch.
+**Fine-tuning a pretrained model** — continuing to train an already-trained model on your own, smaller dataset: you're stuck with the base model's tokenizer. No changes possible without retraining from scratch.
 
 **Using a pretrained model via API**: tokenization affects cost (most APIs charge per token) and context window utilization. Understanding your tokenizer helps you optimize prompts and avoid surprises.
 
