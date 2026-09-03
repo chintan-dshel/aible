@@ -8,15 +8,15 @@ description: What the Model Context Protocol is, why it exists, and what it chan
 
 ## What it is
 
-The Model Context Protocol (MCP) is an open standard protocol, introduced by Anthropic in late 2024, that defines a uniform interface for connecting LLMs to external tools, data sources, and services. It specifies how a host application (a Claude client, an IDE, an agent runtime) communicates with servers that expose capabilities — file systems, databases, APIs, search engines — in a standardized way.
+The Model Context Protocol (MCP) is an open standard protocol, introduced by Anthropic in late 2024, that defines a uniform interface for connecting LLMs to external tools, data sources, and services. It specifies how a host application (a Claude client, an IDE — a program developers write code in, like VS Code — an agent runtime) communicates with servers that expose capabilities — file systems, databases, APIs, search engines — in a standardized way.
 
 The analogy is USB-C for AI: before MCP, every tool integration was custom — a different interface, a different authentication pattern, a different capability contract. MCP provides one connector that works with any tool that implements the server spec.
 
 ## The problem it solves
 
-The dominant approach before MCP was custom tool definitions per application: you write a tool schema for your agent, implement the function, wire it into your prompt, and parse the response. This works but creates M × N integration complexity — M agents each needing to integrate N tools produces M×N custom implementations, each with its own bugs, auth handling, and maintenance burden.
+The dominant approach before MCP was custom tool definitions per application: you write a tool schema (a structured description of what the tool expects as input and returns as output) for your agent, implement the function, wire it into your prompt, and parse the response. This works but creates M × N integration complexity — concretely, 3 agents each needing 5 different tools means 15 separate custom implementations, not 8 — M agents each needing to integrate N tools produces M×N custom implementations, each with its own bugs, auth handling, and maintenance burden.
 
-MCP collapses this to M + N: tools implement the MCP server spec once, and any MCP-compatible host can use them without custom integration code.
+MCP collapses this to M + N — in that same example, 3 + 5 = 8 pieces of work instead of 15: tools implement the MCP server spec once, and any MCP-compatible host can use them without custom integration code.
 
 Concretely:
 - A file system MCP server, once written, works in Claude Desktop, VS Code Copilot, and any other MCP-compatible client
@@ -44,7 +44,7 @@ Host (Claude Desktop / agent runtime)
 
 ### Transport
 
-MCP servers communicate over standard I/O (for local servers) or HTTP with Server-Sent Events (for remote servers). Local servers are spawned as child processes by the host.
+MCP servers communicate over standard I/O — "stdio," the same text-in/text-out channel a command-line program reads and writes through — (for local servers) or HTTP with Server-Sent Events, a way for a server to push a stream of updates to a client over one open connection (for remote servers). Local servers are spawned as child processes — separate running programs the host starts and manages — by the host.
 
 :::caution[Security: stdio servers run with your full permissions]
 
@@ -60,13 +60,15 @@ Before configuring any MCP server from an external or untrusted source: read its
 
 An MCP server can expose three types of capabilities:
 
-**Tools** — functions the LLM can call. Defined with a name, description, and JSON schema for arguments. This is the most common capability type.
+**Tools** — functions the LLM can call. Defined with a name, description, and JSON (a standard, machine-readable text format) schema for arguments. This is the most common capability type.
 
-**Resources** — data the LLM can read. Files, database records, API responses — any content that should be retrieved and injected into context. Resources have URIs and mime types.
+**Resources** — data the LLM can read. Files, database records, API responses — any content that should be retrieved and injected into context. Resources have URIs (addresses that identify exactly where a resource lives, the way a web address does) and mime types (a label saying what kind of content it is, e.g. "text/plain" or "image/png").
 
 **Prompts** — pre-defined prompt templates that the host can present to the user or inject into the LLM's context.
 
 ### Implementing an MCP server
+
+The server below declares two tools (`list_tools`) — reading a file and searching a database — and then handles the actual calls when the host asks it to run one (`call_tool`), returning whatever text result the tool produced. The last few lines start the server listening over stdio, the standard-I/O transport described above.
 
 ```python
 from mcp.server import Server
@@ -132,6 +134,8 @@ if __name__ == "__main__":
 ```
 
 ### Connecting to an MCP server from a client
+
+This is the other side of the connection: the code below starts the server above as a child process, opens a session with it, asks it what tools it offers, and then calls one of them — the same sequence any MCP host runs internally when it connects to a configured server.
 
 ```python
 from mcp import ClientSession, StdioServerParameters
@@ -284,7 +288,7 @@ With this server running, a Claude Desktop user or an MCP-compatible agent can a
 - You want users (not just developers) to be able to extend what an AI assistant can do via configuration
 - You need tool access in Claude Desktop or another MCP-compatible host without building a custom agent
 
-#### Direct tool use (Anthropic tool_choice API) is better when
+#### Direct tool use (Anthropic `tool_choice` API — the setting that controls whether and which tool the model is forced to call) is better when
 
 - You're building a single agent for a specific task and don't need cross-client portability
 - You need precise control over when and how tools are called

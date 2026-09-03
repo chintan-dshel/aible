@@ -122,7 +122,7 @@ diverse_batch = generate_diverse_batch("SaaS billing and subscription management
 
 Not all generated examples are good. Filter before using for training.
 
-A note on circular validation: using a smaller model (Haiku) to judge outputs from a larger model (Sonnet) is unreliable — the smaller model cannot consistently assess quality it cannot produce. The filter below works as a coarse signal, but calibrate it manually: sample 50–100 generated examples, score them yourself, and check how often the filter agrees. If precision is below 80%, either raise the threshold or replace the LLM judge with a task-specific rubric.
+A note on circular validation: using a smaller model (Haiku) to judge outputs from a larger model (Sonnet) is unreliable — the smaller model cannot consistently assess quality it cannot produce. The filter below works as a coarse signal, but calibrate it manually: sample 50–100 generated examples, score them yourself, and check how often the filter agrees. If precision — of the examples the filter approved, the fraction that were actually good — is below 80%, either raise the threshold or replace the LLM judge with a task-specific rubric.
 
 ```python
 def quality_filter(examples: list[dict], threshold: float = 0.7) -> list[dict]:
@@ -199,7 +199,7 @@ Format: JSON array of {{"input": "...", "output": "..."}}
 
 ### Deduplication
 
-Generated datasets often contain near-duplicate examples. Deduplicate before training:
+Generated datasets often contain near-duplicate examples. Deduplicate before training. The function below converts each example's input into an embedding — a list of numbers representing its meaning, so near-duplicate phrasings land close together — and drops any example whose embedding is too close to one already kept:
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -224,7 +224,7 @@ print(f"After deduplication: {len(deduped)}/{len(filtered)} examples")
 
 ## Concrete example
 
-A complete pipeline that generates, filters, deduplicates, and exports a fine-tuning dataset for a classification task:
+A complete pipeline that generates, filters, deduplicates, and exports a fine-tuning (continuing to train an already-trained model on new, smaller data) dataset for a classification task:
 
 ```python
 import anthropic
@@ -320,7 +320,7 @@ Can you define what a good training example looks like well enough to prompt a m
 
 Quality filtering is where most synthetic data pipelines fail or succeed. Generate 2× what you need, filter aggressively, and use only the high-confidence examples. A smaller high-quality dataset trains a better model than a large noisy one — every garbage example teaches the model something wrong.
 
-The diversity problem is subtle. Naive generation produces examples that cluster around the most common patterns. Use the dimension-based approach (vary user type, sentiment, complexity) to force coverage of edge cases. Then check your generated dataset: embed all examples and look for clusters. If you have 10 examples within cosine distance 0.05 of each other, you've overrepresented that part of the distribution.
+The diversity problem is subtle. Naive generation produces examples that cluster around the most common patterns. Use the dimension-based approach (vary user type, sentiment, complexity) to force coverage of edge cases. Then check your generated dataset: embed (convert into a list of numbers representing meaning) all examples and look for clusters. If you have 10 examples within cosine distance 0.05 of each other — meaning their meaning-vectors point in nearly the exact same direction, close to duplicates in substance if not in wording — you've overrepresented that part of the distribution.
 
 Always mix at least some real data in. Purely synthetic fine-tuning can produce a model that sounds like the generating model — missing the natural variation, the weird phrasings, the errors and corrections that appear in real human-produced data. Even 10–20% real examples in the training mix helps the student generalize better.
 
@@ -353,7 +353,7 @@ Always mix at least some real data in. Purely synthetic fine-tuning can produce 
 
 ## Project ideas
 
-**1. Full synthetic fine-tuning pipeline** — Pick a classification task (topic detection, sentiment, intent). Generate 1,000 examples using the teacher model. Filter by quality score. Fine-tune a 3B model using LoRA. Evaluate on 100 real labeled examples. Compare: synthetic-trained model vs. teacher on accuracy, latency, and cost.
+**1. Full synthetic fine-tuning pipeline** — Pick a classification task (topic detection, sentiment, intent). Generate 1,000 examples using the teacher model. Filter by quality score. Fine-tune a 3B model using LoRA (freeze the pretrained model and train only a small, separate pair of matrices alongside it, then merge them back in — far cheaper than updating every weight). Evaluate on 100 real labeled examples. Compare: synthetic-trained model vs. teacher on accuracy, latency, and cost.
 
 **2. Diversity analysis** — Generate 500 synthetic examples without diversity constraints and 500 with the dimension-based approach. Embed all examples. Visualize the embedding space (UMAP or t-SNE). Measure cluster sizes and coverage. Show whether dimension-based generation produces better-distributed training data.
 
