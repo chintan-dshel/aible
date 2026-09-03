@@ -8,9 +8,9 @@ description: Traces, spans, prompt logging, and latency tracking for AI systems 
 
 ## What it is
 
-Observability for AI systems is the practice of capturing enough data about every request — the prompt sent, the model called, the response received, latency at each step, token counts, and errors — that you can understand what your system did, why it did it, and where it went wrong.
+Observability for AI systems is the practice of capturing enough data about every request — the prompt sent, the model called, the response received, latency (delay before a response comes back) at each step, token counts (tokens being roughly words or word-fragments, the unit calls are billed and measured in), and errors — that you can understand what your system did, why it did it, and where it went wrong.
 
-Traditional software observability (metrics, logs, traces) applies, but AI systems have unique instrumentation needs: the "input" is often multi-thousand-token prompts, the "output" is unstructured text, decisions are made by a probabilistic model rather than deterministic code, and failure modes (hallucination, prompt injection, slow generation) are invisible without AI-specific tooling.
+Traditional software observability (metrics, logs, traces — a trace being the full step-by-step record of one request's journey through a system) applies, but AI systems have unique instrumentation needs (instrumentation: the code you add specifically to record what's happening, rather than to do the actual work): the "input" is often multi-thousand-token prompts, the "output" is unstructured text, decisions are made by a probabilistic model rather than deterministic code, and failure modes (hallucination — the model stating a fabricated answer as if it were fact; prompt injection — adversarial text that tricks the model into following an attacker's instructions instead of its real ones; slow generation) are invisible without AI-specific tooling.
 
 ## The problem it solves
 
@@ -28,15 +28,17 @@ In a debugging session for a traditional service, you have logs. In an AI system
 
 ### The four signals
 
-**Traces** — a trace captures the full lifecycle of a single request. For a RAG pipeline, this means: the original user query, the retrieved chunks, the assembled prompt, the model call and response, and the total end-to-end latency. A trace is a tree of spans.
+**Traces** — a trace captures the full lifecycle of a single request. For a RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt) pipeline, this means: the original user query, the retrieved chunks (smaller pieces a document has been split into), the assembled prompt, the model call and response, and the total end-to-end latency. A trace is a tree of spans.
 
-**Spans** — a span captures one unit of work within a trace: embedding the query (with duration and vector dimensions), the ANN retrieval (with the number of results and scores), the rerank step, the LLM call (with model, token counts, latency). Each span has a start time, end time, and metadata.
+**Spans** — a span captures one unit of work within a trace: embedding the query — converting it into a list of numbers representing its meaning, listed here with duration and how many numbers that list has ("vector dimensions") — the ANN retrieval (Approximate Nearest Neighbor: a fast search algorithm that finds the closest-matching stored vectors, with the number of results and scores), the rerank step (a second, more careful pass that re-scores the top candidates), the LLM call (with model, token counts, latency). Each span has a start time, end time, and metadata.
 
-**Metrics** — aggregated statistics over many requests: P50/P95/P99 latency, token counts (input, output, total), error rates, cost per request, cache hit rate.
+**Metrics** — aggregated statistics over many requests: P50/P95/P99 latency (the midpoint, and the values the slowest 5% and 1% of requests fall above), token counts (input, output, total), error rates, cost per request, cache hit rate (how often a request was served from a saved earlier result instead of calling the model again).
 
-**Logs** — structured log entries for events: errors, warnings, retries, fallbacks, guardrail triggers.
+**Logs** — structured log entries for events: errors, warnings, retries, fallbacks, guardrail triggers (a guardrail being a check run on input or output to catch unsafe or policy-violating content).
 
 ### What to capture for every LLM call
+
+The class below is just a structured container for one call's data — request details, the response, timing — with two computed fields (`latency_ms`, `cost_usd`) that derive their values from the others rather than being set directly.
 
 ```python
 import time
@@ -75,12 +77,16 @@ class LLMCallTrace:
     @property
     def cost_usd(self) -> float:
         # Approximate: update with current pricing
-        input_cost = self.input_tokens * 3e-6   # $3/MTok for Sonnet
+        input_cost = self.input_tokens * 3e-6   # 3e-6 = $3 per million tokens
+        # ("MTok") for Sonnet, written in scientific notation -- so a 10,000-token
+        # call costs 10,000 x 3e-6 = $0.03
         output_cost = self.output_tokens * 15e-6  # $15/MTok
         return input_cost + output_cost
 ```
 
 ### Instrumenting an LLM call
+
+The function below wraps a normal model call: it starts a trace, makes the call, records the timing and token counts into it, and emits the finished trace to wherever traces get sent. The helper after it does a simple pass to remove obvious PII (personally identifiable information — names, emails, SSNs) before anything gets logged.
 
 ```python
 import anthropic
@@ -140,6 +146,8 @@ def emit_trace(trace: LLMCallTrace):
     safe_output = scrub_pii_simple(trace.output) if trace.output else ""
 
     # In production: send to Langfuse, LangSmith, Datadog, etc.
+    # json.dumps below converts the dict to JSON, a standard machine-readable
+    # text format, before printing/sending it.
     print(json.dumps({
         "trace_id": trace.trace_id,
         "model": trace.model,
@@ -155,13 +163,13 @@ def emit_trace(trace: LLMCallTrace):
 
 Prompt logs are powerful but carry risk: they contain everything the user said, including personal information. Before logging prompts, decide:
 
-- **What to redact**: PII (names, emails, SSNs, credit card numbers) should be scrubbed before storage. Use a PII detection library (`presidio`, `scrubadub`) or a regex pass over known patterns.
-- **What to truncate**: full prompt text at 200K tokens is expensive to store. Log a truncated version for debugging and a hash of the full prompt for deduplication.
+- **What to redact**: PII (names, emails, SSNs, credit card numbers) should be scrubbed before storage. Use a PII detection library (`presidio`, `scrubadub`) or a regex (text-pattern matcher) pass over known patterns.
+- **What to truncate**: full prompt text at 200K tokens is expensive to store. Log a truncated version for debugging and a hash (a scrambled, fixed-length fingerprint of the data, not the data itself) of the full prompt for deduplication.
 - **Retention policy**: how long do you keep logs? Most compliance frameworks (GDPR, HIPAA, SOC 2) have specific requirements. Default to the minimum retention you need for debugging: 30 days is usually sufficient.
 
 ### Distributed tracing for multi-step pipelines
 
-For a RAG pipeline or multi-agent system, a single user request triggers multiple operations. A distributed trace ties them together:
+For a RAG pipeline or multi-agent system, a single user request triggers multiple operations. A distributed trace ties them together — the code below wraps the query embedding, retrieval, rerank, and generation steps each in their own span, nested under one root span for the whole request, so the whole pipeline shows up as one connected trace instead of four disconnected log lines:
 
 ```python
 from opentelemetry import trace
@@ -255,7 +263,7 @@ In the Langfuse dashboard you can now see: which queries were slowest, which ret
 
 Observability is not something you add after problems appear — it's how you detect problems in the first place. The cost of instrumenting from the start is low; the cost of trying to debug a production incident without traces is very high.
 
-Minimum viable observability: log the model, the input token count, the output token count, latency, and a session ID on every LLM call. This alone enables cost tracking and latency debugging.
+Minimum viable observability: log the model, the input token count, the output token count, latency, and a session ID — a shared identifier tying every turn of one conversation together — on every LLM call. This alone enables cost tracking and latency debugging.
 
 #### What to add as you scale
 

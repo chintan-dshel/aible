@@ -8,13 +8,13 @@ description: Input/output filtering and policy enforcement — how to constrain 
 
 ## What it is
 
-Guardrails are the layer that intercepts inputs before they reach the model and outputs before they reach the user, applying rules, classifiers, or secondary model calls to enforce policy. They are the operational implementation of "this system should not do X."
+Guardrails are the layer that intercepts inputs before they reach the model and outputs before they reach the user, applying rules, classifiers (something that automatically sorts input into categories, like "safe" or "off-topic"), or secondary model calls to enforce policy. They are the operational implementation of "this system should not do X."
 
 The name comes from highway guardrails — they don't prevent cars from driving; they prevent cars from going off the edge. Guardrails don't replace model alignment (which makes the model less likely to produce harmful outputs in the first place) — they add a systematic enforcement layer on top.
 
 ## The problem it solves
 
-Even well-aligned models produce undesirable outputs under some conditions. A model fine-tuned for customer support may discuss competitors when asked cleverly. A medical information bot may provide specific dosage guidance it shouldn't. A general-purpose assistant may generate content that violates your terms of service when given the right context.
+Even well-aligned models produce undesirable outputs under some conditions. A model fine-tuned (further trained on your own data) for customer support may discuss competitors when asked cleverly. A medical information bot may provide specific dosage guidance it shouldn't. A general-purpose assistant may generate content that violates your terms of service when given the right context.
 
 You cannot enumerate in advance every input that violates your policy. Guardrails provide a systematic, testable, updatable mechanism for enforcing policy without modifying the model itself.
 
@@ -24,7 +24,9 @@ You cannot enumerate in advance every input that violates your policy. Guardrail
 
 Applied to the user's message before it reaches the model. Common patterns:
 
-**Blocklist / regex filter** — fast, deterministic, zero latency. Catches known bad patterns (profanity, competitor names, SQL injection, specific phrases). Brittle against rephrasing.
+**Blocklist / regex filter** — fast, deterministic (same input always produces the same output, with no randomness), zero latency (no delay waiting for a response). Catches known bad patterns (profanity, competitor names, SQL injection — a decades-old attack where user input gets run as a literal database command, specific phrases). Brittle against rephrasing.
+
+The function below checks the input text against a list of regex — text-pattern — matches, and rejects it if any pattern hits:
 
 ```python
 import re
@@ -63,7 +65,7 @@ Answer with JSON: {{"on_topic": true/false, "topic": "topic or null"}}"""}]
     return json.loads(result.content[0].text)
 ```
 
-**Prompt injection detector** — a classifier specifically trained to detect injection attempts (see [Prompt Injection](./prompt-injection) for the full taxonomy). LlamaGuard and similar models handle this.
+**Prompt injection detector** — a classifier specifically trained to detect injection attempts — adversarial text trying to override the system's real instructions (see [Prompt Injection](./prompt-injection) for the full taxonomy). LlamaGuard (Meta's purpose-built safety classifier, covered below) and similar models handle this.
 
 ### Output guardrails
 
@@ -102,7 +104,7 @@ JSON: {{"passes": true/false, "violation": "description or null"}}"""}]
     return data["passes"], data.get("violation", "")
 ```
 
-**Hallucination check** — verify that factual claims in the output are grounded in the provided context (see [Output Validation](./output-validation) for the full approach).
+**Hallucination check** — verify that factual claims in the output — which could otherwise be fabricated and stated as if true — are grounded in the provided context (see [Output Validation](./output-validation) for the full approach).
 
 ### LlamaGuard
 
@@ -154,11 +156,11 @@ def llamaguard_check(user_message: str, assistant_response: str = "") -> dict:
     }
 ```
 
-LlamaGuard has important limitations to understand before deploying it. It covers the harms in its training taxonomy (S1–S13) reliably on typical inputs, but accuracy varies by category and degrades on adversarially crafted inputs. It also has no knowledge of domain-specific harms — "never reveal competitor pricing," "don't make specific medication dosage claims," or "don't confirm a user's account balance" are not in its taxonomy. If your policy includes harms outside S1–S13, you'll need a custom classifier alongside LlamaGuard. Before deploying it, validate it on 50+ examples from your domain where you know the ground-truth safety verdict.
+LlamaGuard has important limitations to understand before deploying it. It covers the harms in its training taxonomy (S1–S13) reliably on typical inputs, but accuracy varies by category and degrades on adversarially crafted inputs. It also has no knowledge of domain-specific harms — "never reveal competitor pricing," "don't make specific medication dosage claims," or "don't confirm a user's account balance" are not in its taxonomy. If your policy includes harms outside S1–S13, you'll need a custom classifier alongside LlamaGuard. Before deploying it, validate it on 50+ examples from your domain where you know the ground-truth safety verdict — the actual correct answer, checked by a human, that the classifier's output should be compared against.
 
 ### Guardrail pipeline
 
-The standard pattern is a chain of guards applied in order, with short-circuit on failure:
+The standard pattern is a chain of guards applied in order, with short-circuit on failure — stop at the first guard that fails, rather than running every remaining check anyway:
 
 ```python
 from dataclasses import dataclass
@@ -194,7 +196,7 @@ def run_output_guards(output: str, system_context: str) -> GuardrailResult:
 
 ## Concrete example
 
-A complete guardrail pipeline for a customer support bot:
+A complete guardrail pipeline for a customer support bot — check the input against an injection blocklist, then a topic classifier, then generate a response, then check its length and run it past a policy check before returning it:
 
 ```python
 import anthropic
@@ -265,7 +267,7 @@ def customer_support(user_message: str, session_id: str) -> dict:
 
 #### Guardrails alone are insufficient when
 
-- The threat model includes sophisticated adversarial users — guardrails raise the bar but don't eliminate the risk
+- The threat model — the specific set of attackers and attack methods you're actually defending against — includes sophisticated adversarial users; guardrails raise the bar but don't eliminate the risk
 - Your policy changes frequently — classifier-based guardrails need retraining; rule-based ones need rewriting
 - You're over-guardrailing and blocking legitimate requests — measure your false positive rate
 
@@ -275,7 +277,7 @@ What is the worst output this system could produce, and how bad would it be? If 
 
 :::tip[My take]
 
-Order your guards by cost: put the cheapest (regex blocklist, length check) first and the most expensive (LLM-as-judge policy check) last. A regex check that takes 0ms should run before a model call that takes 300ms. You'll block most bad inputs before they ever reach the expensive check.
+Order your guards by cost: put the cheapest (regex blocklist, length check) first and the most expensive (LLM-as-judge policy check — a second model call that grades the output against a rubric) last. A regex check that takes 0ms should run before a model call that takes 300ms. You'll block most bad inputs before they ever reach the expensive check.
 
 The false positive problem is real. Overly aggressive guardrails make your system useless — users get blocked on legitimate questions and lose trust. Track your guardrail trigger rate by category. If a category triggers on > 5% of legitimate-looking inputs, your policy for that category is too broad.
 
@@ -299,7 +301,7 @@ The false positive problem is real. Overly aggressive guardrails make your syste
 
 **2. High false positive rate.** Blocking 10% of legitimate requests to prevent 0.1% of bad requests is usually the wrong trade-off. Measure your false positive rate on production traffic. If it's above 1–2%, your guardrail is too aggressive.
 
-**3. Latency addition.** Each guard adds latency. A chain of: input classifier (200ms) + model call (600ms) + output classifier (200ms) = 1,000ms total, where the actual generation was only 600ms. Use fast models (Haiku) for guards and run input and output guards asynchronously where possible.
+**3. Latency addition.** Each guard adds latency. A chain of: input classifier (200ms) + model call (600ms) + output classifier (200ms) = 1,000ms total, where the actual generation was only 600ms. Use fast models (Haiku) for guards and run input and output guards asynchronously — running them at the same time rather than one after another and waiting for each — where possible.
 
 **4. Guardrails on the wrong layer.** Input guardrails that only check the last user message miss injection payloads embedded in retrieved documents (indirect injection). Check retrieved content before injecting it into the prompt.
 
@@ -313,7 +315,7 @@ The false positive problem is real. Overly aggressive guardrails make your syste
 
 **2. Injection resistance test** — Build the prompt injection detection guard above. Then craft 20 injection attempts ranging from obvious ("ignore all previous instructions") to subtle (role-playing scenarios, indirect injection via retrieved documents). Measure detection rate. Document which attempts slip through.
 
-**3. Guard latency profiler** — Add timing to each guard in your chain. Run 100 requests. Measure the latency contribution of each guard stage. Is the expensive model-based guard worth the latency on every request? Experiment with running it only on inputs that pass initial heuristics.
+**3. Guard latency profiler** — Add timing to each guard in your chain. Run 100 requests. Measure the latency contribution of each guard stage. Is the expensive model-based guard worth the latency on every request? Experiment with running it only on inputs that pass initial heuristics — quick, rule-of-thumb checks that are cheap but imperfect.
 
 **4. Defense-in-depth comparison** — Compare three configurations on the same test set: (a) no guards, (b) input guards only, (c) input + output guards. Measure harmful output rate for each. Quantify how much risk each layer eliminates and at what latency cost. This makes the trade-off concrete.
 
