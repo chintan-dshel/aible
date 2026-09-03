@@ -10,19 +10,19 @@ A fallback is what the system does when the primary path fails. For LLM applicat
 
 ## The problem it solves
 
-Any single model or provider will occasionally be unavailable: rate limits hit, API downtime, context windows exceeded, content policy rejections. Without a fallback chain, every one of these events is a user-facing error. With a well-designed fallback chain, the system degrades in controlled steps rather than failing outright.
+Any single model or provider will occasionally be unavailable: rate limits hit, API downtime, context windows (the block of text the model can see and use in one call) exceeded, content policy rejections. Without a fallback chain, every one of these events is a user-facing error. With a well-designed fallback chain, the system degrades in controlled steps rather than failing outright.
 
 The problem is more subtle than simple retry logic ([[Reliability]] handles brief, transient failures within a single provider — usually resolved in seconds). Fallbacks address a different timescale: the primary model is rate-limited for the next 60 seconds or more, the request exceeds the primary's context window, or a faster/cheaper secondary is preferable for certain request types. The same error type (e.g., a rate limit 429) can belong to both layers: retry logic handles a momentary spike; a fallback chain handles sustained quota exhaustion.
 
 ## How it works under the hood
 
-**Ordered fallback chain.** Define models in priority order. When the primary raises a specific exception class (rate limit, timeout, context-length exceeded), move to the next. When the last model fails, serve deterministic fallback content.
+**Ordered fallback chain.** Define models in priority order. When the primary raises a specific exception class — a named category of error the code checks for, so different failures can be handled differently (rate limit, timeout, context-length exceeded), move to the next. When the last model fails, serve deterministic fallback content.
 
 **Exception-typed routing.** Not all failures warrant the same fallback. A `RateLimitError` → try secondary model. A `ContextWindowExceeded` → try a model with a larger context window. A content policy rejection → return a static message, not another model (re-trying won't change the policy outcome).
 
-**Capability matching.** The fallback model must be capable of the task. A 4K-token secondary is not a valid fallback for a request that already used 3K tokens of context. Track token counts before routing.
+**Capability matching.** The fallback model must be capable of the task. A 4K-token (tokens being roughly words or word-fragments — the unit context is measured in; 4K tokens is on the order of 3,000 words) secondary is not a valid fallback for a request that already used 3K tokens of context. Track token counts before routing.
 
-**Response stitching for streaming.** If the primary started streaming before failing mid-response, the fallback needs to either restart from scratch or continue from the partial output. Restarting is simpler and safer.
+**Response stitching for streaming.** If the primary started streaming — sending its reply piece by piece as it's generated, rather than all at once — before failing mid-response, the fallback needs to either restart from scratch or continue from the partial output. Restarting is simpler and safer.
 
 ## Concrete example
 

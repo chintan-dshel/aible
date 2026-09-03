@@ -6,11 +6,11 @@ description: Shadow mode, A/B testing, canary, and blue-green deployments adapte
 
 # Deployment Patterns
 
-You can't unit test a model or prompt change. The only way to know whether it regresses on real traffic is to run it on real traffic — carefully, with controls, and with a fast rollback path.
+You can't unit test — write a small, automated check that verifies one piece of code always produces the same correct output for a given input — a model or prompt change. The only way to know whether it regresses on real traffic is to run it on real traffic — carefully, with controls, and with a fast rollback path.
 
 ## The problem it solves
 
-Model updates, prompt changes, and system prompt rewrites all change behavior in ways that are hard to predict from offline evals alone. A prompt that scores better on your golden dataset might perform worse on the long tail of production queries. Traditional deployment patterns (canary, blue-green, A/B) apply, but need to be adapted for the specific properties of LLM systems: non-deterministic outputs, subjective quality metrics, and prompt-coupled behavior (where the prompt and model output format are entangled with how downstream systems parse the response — change the prompt and you may silently break a parser without any code error).
+Model updates, prompt changes, and system prompt rewrites all change behavior in ways that are hard to predict from offline evals alone. A prompt that scores better on your golden dataset might perform worse on the long tail of production queries. Traditional deployment patterns (canary, blue-green, A/B) apply, but need to be adapted for the specific properties of LLM systems: non-deterministic outputs, subjective quality metrics, and prompt-coupled behavior (where the prompt and model output format are entangled with how downstream systems parse (read and extract structured data out of) the response — change the prompt and you may silently break a parser without any code error).
 
 ## How it works under the hood
 
@@ -18,11 +18,11 @@ Model updates, prompt changes, and system prompt rewrites all change behavior in
 
 **Canary deployment.** Route a small percentage (1–5%) of live traffic to the new version. Monitor quality metrics for that slice. Gradually increase the percentage if metrics hold. Roll back immediately if they degrade.
 
-**A/B testing.** Split traffic into two groups: control (current version) and treatment (new version). Collect outcome metrics for both groups, run a significance test, and make a ship/no-ship decision. Requires a defined outcome metric and enough traffic to reach statistical significance. Note: LLM outputs are non-deterministic, so the same user can get meaningfully different responses within the same variant — this inflates within-group variance and means LLM A/B tests require more traffic than equivalent deterministic software tests to detect the same effect size.
+**A/B testing.** Split traffic into two groups: control (current version) and treatment (new version). Collect outcome metrics for both groups, run a significance test — a statistical check for whether an observed difference is real or could plausibly be random noise — and make a ship/no-ship decision. Requires a defined outcome metric and enough traffic to reach statistical significance (confidence that the difference you're seeing isn't just chance). Note: LLM outputs are non-deterministic, so the same user can get meaningfully different responses within the same variant — this inflates within-group variance (how much responses within one group naturally scatter, even before comparing the two groups) and means LLM A/B tests require more traffic than equivalent deterministic software tests to detect the same effect size (the actual size of the difference you're trying to measure).
 
 **Blue-green deployment.** Maintain two complete environments (blue = current, green = new). Switch traffic entirely from blue to green in one step. Keep blue running for instant rollback. Higher infrastructure cost than canary but simpler mentally — no partial state.
 
-**Feature flags.** Toggle the new model or prompt at runtime without redeployment. Enables instant rollback, per-user or per-tenant targeting, and gradual rollout by cohort.
+**Feature flags.** Toggle the new model or prompt at runtime without redeployment. Enables instant rollback, per-user or per-tenant (a tenant being one customer or organization sharing the same infrastructure) targeting, and gradual rollout by cohort (a defined group of users, e.g. everyone who signed up this month).
 
 ## Concrete example
 
@@ -174,7 +174,7 @@ GrowthBook is open-source and self-hostable — good for teams that want A/B tes
 
 **Shadow mode doesn't catch latency regressions.** The shadow call is off the critical path — it adds no latency from the user's perspective. If the candidate model is 3x slower, you won't see it until you go live. Run a dedicated latency benchmark before promoting from shadow to canary.
 
-**A/B test without a stopping rule.** Running an A/B test until it "looks significant" is p-hacking. Define the minimum detectable effect, required power (80%), and significance level (0.05) before the test starts. Use a stopping rule — don't peek daily.
+**A/B test without a stopping rule.** Running an A/B test until it "looks significant" is p-hacking — checking results repeatedly and stopping the moment they look favorable, which makes random noise far more likely to be mistaken for a real effect. Define the minimum detectable effect (the smallest real difference you actually care about catching), required power (80% — the chance the test will detect that effect if it's really there), and significance level (0.05 — the chance you're willing to accept of calling a fluke a real effect) before the test starts. Use a stopping rule — don't peek daily.
 
 **Rollback that can't actually roll back.** If the candidate model produces responses in a new format that downstream systems have started consuming, rolling back the model doesn't un-break the data. Keep schema-breaking changes decoupled from model changes.
 

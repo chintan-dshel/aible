@@ -16,7 +16,7 @@ This matters especially in regulated domains (medical, legal, financial), high-s
 
 ## How it works under the hood
 
-**Confidence threshold routing.** Estimate confidence in the model's output (via logprobs, self-consistency, or an LLM judge — see [[Confidence Estimation]] for how each technique works). If confidence falls below a threshold, route to a fallback instead of serving the output.
+**Confidence threshold routing.** Estimate confidence in the model's output — via logprobs (the model's own raw per-word probability scores, when the API exposes them), self-consistency (asking the model the same question several times and checking how often it agrees with itself), or an LLM judge (a second model call that grades the first model's output); see [[Confidence Estimation]] for how each technique works. If confidence falls below a threshold, route to a fallback instead of serving the output.
 
 **Fallback content hierarchy.** Define an ordered sequence of increasingly conservative responses:
 1. Try the primary model
@@ -169,7 +169,7 @@ The system tries the primary model, checks confidence, attempts a more conservat
 
 **Escalation queue overflow.** If the confidence threshold is too strict, most requests escalate and humans can't keep up. The queue becomes a black hole. Monitor queue depth and escalation rate as first-class metrics.
 
-**Threshold miscalibration.** A threshold of 0.7 that sounds reasonable might cause 90% escalation in practice. Tune thresholds against held-out labeled data, not intuition.
+**Threshold miscalibration.** A threshold of 0.7 that sounds reasonable might cause 90% escalation in practice. Tune thresholds against held-out labeled data — a set of examples you already know the right answer to, kept aside for testing rather than used during development — not intuition.
 
 **Degradation hiding model failure.** If the primary model starts consistently producing low-confidence outputs due to a regression, graceful degradation masks it. Alert when degradation rate spikes — don't let it run silently at 80%.
 
@@ -179,7 +179,7 @@ The system tries the primary model, checks confidence, attempts a more conservat
 
 - **Degradation rate dashboard**: track what % of requests hit each level (FULL / REDUCED / STATIC / ESCALATED) over time. Spike in ESCALATED = model regression signal.
 - **Escalation inbox**: a simple web UI showing the human review queue, with one-click "approve", "edit", and "reject" actions that feed back into a training dataset.
-- **Threshold calibration tool**: given a labeled validation set, find the confidence threshold that minimizes `cost_of_wrong_answer * false_positives + cost_of_escalation * false_negatives`.
+- **Threshold calibration tool**: given a labeled validation set, find the confidence threshold that minimizes `cost_of_wrong_answer * false_positives + cost_of_escalation * false_negatives` — in plain terms, the threshold where the combined cost of wrongly-confident answers and unnecessarily-escalated ones is lowest; e.g., if a wrong answer costs $50 and an unneeded escalation costs $2, the formula will favor a stricter threshold that escalates more often, because the $2 mistakes are far cheaper than the $50 ones.
 
 ## Going deeper
 
