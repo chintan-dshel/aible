@@ -12,7 +12,7 @@ Running language models and ML inference on local hardware — phones, laptops, 
 
 Cloud inference has four friction points: latency (round-trip to a datacenter), cost (at scale, per-token pricing adds up), privacy (user data leaves the device), and availability (network required). On-device inference eliminates all four — but trades them for model capability constraints, hardware limits, and deployment complexity.
 
-The inflection point happened around 2023–2024. Models like Phi-3 Mini (3.8B), Gemma 2 (2B), and Mistral 7B showed that a model small enough to run on a laptop or phone could handle a surprising range of tasks: summarization, classification, code completion, simple QA, and local RAG — acceptably well, not just barely.
+The inflection point happened around 2023–2024. Models like Phi-3 Mini (3.8B parameters — an internal, adjustable number the model learns during training; more parameters generally means a bigger, more capable model), Gemma 2 (2B), and Mistral 7B showed that a model small enough to run on a laptop or phone could handle a surprising range of tasks: summarization, classification, code completion, simple QA, and local RAG (retrieval-augmented generation — searching a document store and pasting the relevant results into the prompt) — acceptably well, not just barely.
 
 ## How it works under the hood
 
@@ -20,13 +20,15 @@ The inflection point happened around 2023–2024. Models like Phi-3 Mini (3.8B),
 
 **GGUF format.** The standard format for CPU-optimized quantized models. llama.cpp introduced it; now the ecosystem standard for running models on consumer hardware. A GGUF file contains the quantized weights, metadata, and tokenizer — everything needed to run the model without additional dependencies.
 
-**Hardware acceleration.** Modern consumer hardware has specialized inference units: Apple Neural Engine (ANE) on M-series chips, Qualcomm Hexagon NPU on Snapdragon, Intel Neural Compute Stick. These provide 5–20× speedup over pure CPU inference. Frameworks like CoreML (Apple), ONNX Runtime, and MLC LLM compile models to target these units.
+**Hardware acceleration.** Modern consumer hardware has specialized inference units: Apple Neural Engine (ANE) on M-series chips, Qualcomm Hexagon NPU (Neural Processing Unit — a chip built specifically to run machine-learning computations fast and efficiently) on Snapdragon, Intel Neural Compute Stick. These provide 5–20× speedup over pure CPU inference. Frameworks like CoreML (Apple), ONNX Runtime, and MLC LLM compile models to target these units.
 
 **Knowledge distillation.** Separately from quantization: train a smaller model (student) to mimic the outputs of a larger model (teacher). The student learns from soft labels — the teacher's full probability distribution over all possible next tokens, rather than just a one-hot correct answer (the "hard label"). This transfers the teacher's uncertainty and nuance, not just its top prediction. See [[Model Distillation]] for the full training recipe. Phi-3, Gemma, and TinyLlama are all distilled from larger models.
 
 **Speculative decoding on edge.** Use a tiny draft model (50M–500M params) to generate candidate tokens, then verify with the full model. On-device, where memory bandwidth is the bottleneck, this can 2–4× decode speed.
 
 ## Concrete example
+
+The functions below cover loading a local GGUF model, running a completion or a chat-style call against it, classifying sensitive text without any network call, benchmarking its speed, and wrapping it as a simple offline Q&A assistant over a document.
 
 ```python
 # Running a local model with llama-cpp-python
@@ -170,7 +172,7 @@ On a MacBook M2 Pro, Phi-3 Mini 4K (Q4_K_M quantization) runs at ~40 tokens/seco
 
 **Don't use when:**
 - Task requires a frontier model's reasoning capability — 7B models are significantly worse than Claude Sonnet or GPT-4o on complex multi-step reasoning, code generation, and instruction following
-- Context window > 8K tokens — small models degrade sharply at long contexts
+- Context window (the block of text the model can see and use in one call) > 8K tokens — small models degrade sharply at long contexts
 - Frequent model updates are needed — deploying a new model version to 10,000 devices is an operational challenge cloud models don't have
 - Hardware is constrained below 4 GB RAM — even quantized 7B models need 4–6 GB
 
@@ -198,15 +200,15 @@ On a MacBook M2 Pro, Phi-3 Mini 4K (Q4_K_M quantization) runs at ~40 tokens/seco
 
 **Context window inflation on small models.** A 7B model with a 4K context window degrades in coherence near the end of the context. Budget context more conservatively than with frontier models.
 
-**Memory spikes during model loading.** Loading a 7B GGUF model requires the full model in RAM simultaneously with the KV cache. On devices with 8 GB RAM, this leaves little headroom for the OS and other apps. Monitor peak RAM, not just steady-state.
+**Memory spikes during model loading.** Loading a 7B GGUF model requires the full model in RAM simultaneously with the KV cache — the running cache of intermediate values from every token processed so far, kept so the model doesn't have to redo that work on each new token. On devices with 8 GB RAM, this leaves little headroom for the OS and other apps. Monitor peak RAM, not just steady-state.
 
 **Model drift from cloud version.** "Phi-3 Mini on-device" and "GPT-4o via API" are not interchangeable. Prompts tuned for one often don't transfer to the other. Maintain separate prompt templates and evals for each deployment target.
 
 ## Project ideas
 
-- **Private document assistant**: build a local RAG system using Ollama + nomic-embed-text + a local GGUF model. Documents are embedded locally, stored in a local vector store (ChromaDB with persistent storage), and queried entirely on-device. See [[RAG]] for retrieval patterns and [[Vector Databases]] for local store options.
+- **Private document assistant**: build a local RAG (retrieval-augmented generation) system using Ollama + nomic-embed-text + a local GGUF model. Documents are embedded locally, stored in a local vector store (ChromaDB with persistent storage), and queried entirely on-device. See [[RAG]] for retrieval patterns and [[Vector Databases]] for local store options.
 - **On-device classification service**: wrap a local model in a FastAPI server on localhost — no network calls, sub-100ms classification for on-device applications (macOS menu bar app, iOS Shortcut, VS Code extension).
-- **Quantization quality benchmark**: take 50 representative prompts from your use case, run them through Q8_0, Q6_K, Q4_K_M, and Q3_K_S variants of the same model, and measure output quality degradation vs. tokens/second tradeoff. The result tells you which quantization level is the right tradeoff for your task.
+- **Quantization quality benchmark**: take 50 representative prompts from your use case, run them through Q8_0, Q6_K, Q4_K_M, and Q3_K_S variants of the same model (GGUF's own naming scheme for a range of precision levels between 8-bit and 3-bit — finer-grained versions of the float32-vs-int8-vs-int4 spectrum described above), and measure output quality degradation vs. tokens/second tradeoff. The result tells you which quantization level is the right tradeoff for your task.
 
 ## Going deeper
 

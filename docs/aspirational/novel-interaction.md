@@ -20,18 +20,19 @@ Novel interaction paradigms address different constraints:
 
 ## How it works under the hood
 
-**Voice pipeline (current).** Wake word detection → Voice Activity Detection (VAD) → Automatic Speech Recognition (ASR) → LLM → Text-to-Speech (TTS). Each hop adds latency: typical pipeline end-to-end is 1.5–3 seconds. The weak link is usually ASR (accuracy, latency) and TTS naturalness. OpenAI's Realtime API and similar end-to-end voice models collapse the ASR + LLM + TTS into a single model, reducing latency to under 600ms.
+**Voice pipeline (current).** Five stages, each handing off to the next: detect the wake word ("Hey Siri"), detect that someone is actually speaking (Voice Activity Detection, VAD), transcribe that speech to text (Automatic Speech Recognition, ASR), send the text to the LLM, then convert its reply back to speech (Text-to-Speech, TTS). Each hop adds latency: typical pipeline end-to-end is 1.5–3 seconds. The weak link is usually ASR (accuracy, latency) and TTS naturalness. OpenAI's Realtime API and similar end-to-end voice models collapse the ASR + LLM + TTS into a single model, reducing latency to under 600ms.
 
-**End-to-end voice models.** Instead of transcribing speech to text and then processing text, end-to-end models accept audio input tokens directly and output audio tokens. Benefits: they can hear tone, pacing, and non-speech cues (laughter, hesitation) that transcription loses. Current limitation: harder to control, debug, and integrate with existing text-based pipelines.
+**End-to-end voice models.** Instead of transcribing speech to text and then processing text, end-to-end models accept audio input tokens directly and output audio tokens — audio chopped into discrete chunks the model can process the same way it processes text tokens, skipping the separate transcription step entirely. Benefits: they can hear tone, pacing, and non-speech cues (laughter, hesitation) that transcription loses. Current limitation: harder to control, debug, and integrate with existing text-based pipelines.
 
 **Ambient agents.** A persistent background process monitors a stream of context — calendar events, open documents, recent communications, location, time-of-day — and proactively surfaces relevant information or actions. The core engineering challenge: deciding when to interrupt vs. stay silent. Interrupting too often creates notification fatigue; too rarely and the agent is invisible.
 
-**Spatial computing.** AR glasses or mixed-reality headsets (Apple Vision Pro, Meta Quest) provide a new rendering surface: digital overlays anchored to physical objects. An AI agent in this context can: annotate a physical machine with repair instructions when you look at it, overlay meeting notes when you enter a conference room, show navigation cues overlaid on the physical environment.
+**Spatial computing.** AR (augmented reality — digital content overlaid on the real world you're looking at) glasses or mixed-reality headsets (Apple Vision Pro, Meta Quest) provide a new rendering surface: digital overlays anchored to physical objects. An AI agent in this context can: annotate a physical machine with repair instructions when you look at it, overlay meeting notes when you enter a conference room, show navigation cues overlaid on the physical environment.
 
 ## Concrete example
 
 ```python
-# Voice pipeline using Whisper (ASR) + Claude (LLM) + pyttsx3 (TTS)
+# Voice pipeline using Whisper (OpenAI's open-source ASR model,
+# for the transcription step) + Claude (LLM) + pyttsx3 (TTS)
 # pip install openai-whisper pyaudio pyttsx3 anthropic
 
 import anthropic
