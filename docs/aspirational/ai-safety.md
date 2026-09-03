@@ -22,18 +22,18 @@ These aren't hypothetical. Current systems already exhibit: reward hacking (find
 
 Safety research is not a single technique — it's a cluster of research programs, each attacking a different part of the problem.
 
-**RLHF and preference learning.** The current mainstream approach: train a reward model on human preference comparisons, then fine-tune the LLM to maximize that reward. Limitations: reward models can be gamed, humans are inconsistent evaluators, and RLHF doesn't address what happens when the model becomes smarter than its evaluators. *Contested: some researchers think RLHF-type approaches are sufficient for near-term alignment; others think they fail fundamentally at scale.*
+**RLHF (Reinforcement Learning from Human Feedback) and preference learning.** The current mainstream approach: train a reward model — a separate model that learns to predict which of two responses a human would prefer — on human preference comparisons, then fine-tune (continue training) the LLM to maximize that reward. Limitations: reward models can be gamed, humans are inconsistent evaluators, and RLHF doesn't address what happens when the model becomes smarter than its evaluators. *Contested: some researchers think RLHF-type approaches are sufficient for near-term alignment; others think they fail fundamentally at scale.*
 
 **Constitutional AI (Anthropic).** Instead of requiring human labels for every preference, define a set of principles (a "constitution") and train the model to self-critique and revise its outputs against those principles. Reduces reliance on human labeling volume. The critique is that the constitution itself is underspecified — who decides what's in it?
 
-**Mechanistic interpretability.** Reverse-engineer what's happening inside the model at the level of individual circuits and features. Anthropic's work on superposition (features are directions in activation space; individual neurons participate in multiple features simultaneously), circuits (the algorithm a model uses for a task like induction or indirect object identification), and features (semantic concepts encoded in activation space) is the leading research program. Findings so far: some clear circuits and features exist, but scaling to full understanding of a frontier model remains far off.
+**Mechanistic interpretability.** Reverse-engineer what's happening inside the model at the level of individual circuits and features — in plain terms, open up the model's internals and try to find identifiable, human-readable pieces of "how it thinks," the way you might reverse-engineer a circuit board by tracing which components do what. Anthropic's work names three such pieces: a "feature" is a specific concept the model has learned to represent (say, "this text is about the Golden Gate Bridge"), stored as a distinctive pattern in the model's internal numbers ("activation space" — the space of all the values a layer can take on for a given input); "superposition" is the finding that the model packs far more features into that space than it has room for one-feature-per-neuron, so most individual neurons end up contributing to many different features at once, not just one; and a "circuit" is the specific chain of computation the model runs to get from input to a given output — the algorithm it's actually executing for a task like completing a pattern or figuring out who a pronoun refers to. This is the leading research program. Findings so far: some clear circuits and features exist, but scaling to full understanding of a frontier model remains far off.
 
 **Scalable oversight.** How do you supervise a system smarter than you? Proposed approaches:
 - *Debate*: have two AI systems argue opposite sides; a human judges which is more honest and correct — the hypothesis is that detecting a flawed argument is easier than independently generating the right answer.
 - *Recursive Reward Modeling (RRM)*: use AI assistance to help humans evaluate AI outputs, recursively.
 - *Process-based supervision*: evaluate reasoning steps, not just final answers, so errors can be caught mid-argument.
 
-**Robustness and adversarial training.** Train models to maintain intended behavior under adversarial inputs — jailbreaks, prompt injections, distribution shift. See [[Red Teaming]] for the practical application of this.
+**Robustness and adversarial training.** Train models to maintain intended behavior under adversarial inputs — jailbreaks (crafted prompts that get the model to ignore its own safety constraints), prompt injections (adversarial text that tricks the model into following an attacker's instructions instead of its real ones), distribution shift (real-world inputs that look different from anything the model saw during training). See [[Red Teaming]] for the practical application of this.
 
 ## Concrete example
 
@@ -137,7 +137,7 @@ def constitutional_ai_response(prompt: str, max_revisions: int = 2) -> dict:
     }
 ```
 
-This is a simplified version of the CAI loop. Production CAI trains the revision behavior into the model weights rather than running it at inference time. The example shows the *structure* — the model critiquing and revising its own outputs against explicit principles.
+This is a simplified version of the CAI (Constitutional AI) loop. Production CAI trains the revision behavior into the model weights (the internal numbers it learns during training) rather than running it at inference time (when the model is actually being used to answer, as opposed to being trained). The example shows the *structure* — the model critiquing and revising its own outputs against explicit principles.
 
 ## When to use it / when not to
 
@@ -147,7 +147,7 @@ This is a simplified version of the CAI loop. Production CAI trains the revision
 - **Reward hacking**: your eval metric diverges from what you actually want. Design evals that are harder to game.
 - **Specification gaming**: your system prompt says "be helpful" but the model optimizes for engagement or agreement instead. Test for this explicitly.
 - **Distributional failure**: your model works on your test set but fails in ways you didn't anticipate on production traffic. This is a safety issue disguised as a quality issue.
-- **Training data poisoning**: if you fine-tune on user-generated data, adversarial examples in the training set can shift model behavior in targeted ways. Audit fine-tuning data before training; prefer RLHF or curated SFT over unfiltered user data.
+- **Training data poisoning**: if you fine-tune on user-generated data, adversarial examples in the training set can shift model behavior in targeted ways. Audit fine-tuning data before training; prefer RLHF or curated SFT (supervised fine-tuning: continuing to train the model on a curated set of labeled examples) over unfiltered user data.
 
 **Constitutional AI and self-critique** are practical techniques you can implement now to reduce harmful outputs and improve consistency, without waiting for the research frontier. For the production enforcement layer that runs at inference time, see [[Guardrails]].
 
@@ -180,7 +180,7 @@ This is a simplified version of the CAI loop. Production CAI trains the revision
 
 - **Sycophancy audit**: pick 30 prompts where the user's stated assumption is wrong. Test your model or prompt; measure how often it corrects the user vs. agrees. Compare before and after adding an anti-sycophancy instruction ("Prioritize accuracy over agreement").
 - **Constitutional AI pipeline**: implement the critique-revise loop above for your application's specific domain. Write 5–10 principles relevant to your use case (e.g., "The response should not recommend specific financial products without disclosing uncertainty"). Measure how often the initial response violates each principle on a test set.
-- **Reward hacking probe**: fine-tune a model on a synthetic task where the ground truth and the eval metric can diverge. Observe whether the model finds the shortcut. This builds intuition for why goodhart's law matters in AI training.
+- **Reward hacking probe**: fine-tune a model on a synthetic task where the ground truth and the eval metric can diverge. Observe whether the model finds the shortcut. This builds intuition for why Goodhart's law — "when a measure becomes a target, it stops being a good measure" — matters in AI training.
 
 ## Going deeper
 

@@ -10,7 +10,7 @@ An agent that takes a task and runs for hours or days without continuous supervi
 
 ## The problem it solves
 
-Most LLM applications are single-turn or short-session. A long-horizon agent must handle what those can't: a context window that fills up over a long task, errors that compound if not caught, irreversible actions that require confirmation, and the need to resume from where it left off after a restart.
+Most LLM applications are single-turn or short-session. A long-horizon agent must handle what those can't: a context window (the block of text the model can see and use in one call) that fills up over a long task, errors that compound if not caught, irreversible actions that require confirmation, and the need to resume from where it left off after a restart.
 
 The target use cases are research pipelines, code generation tasks that span files and repositories, automated data processing jobs, and anything that a skilled contractor would bill days of time for.
 
@@ -18,11 +18,11 @@ The target use cases are research pipelines, code generation tasks that span fil
 
 **Hierarchical planning.** Break the task into milestones before executing any step. The agent maintains a high-level plan (5–10 milestones) and a local step queue (2–3 next actions). After each milestone completes, it re-evaluates the plan against the current state.
 
-**Checkpointing.** Serialize the full agent state (plan, completed steps, discovered artifacts, accumulated context summary) after each milestone. A checkpoint enables: resuming after a crash, rolling back to a previous known-good state, and human review at defined intervals.
+**Checkpointing.** Serialize (convert the agent's in-memory state into a saveable format, like a JSON file, that can be written to disk and read back later) the full agent state (plan, completed steps, discovered artifacts, accumulated context summary) after each milestone. A checkpoint enables: resuming after a crash, rolling back to a previous known-good state, and human review at defined intervals.
 
 **Context management.** Context windows fill up. After every N steps, summarize what has been accomplished into a compact representation and drop the raw turn history. The agent operates on this rolling summary rather than the full transcript. Key artifacts (code written, files created, decisions made) are stored externally and retrieved as needed — see [[RAG]] for retrieval patterns and [[Memory Architectures]] for how to structure persistent agent state.
 
-**Human-in-the-loop gates.** Before any irreversible action (deleting files, sending emails, committing to a branch, making an API call with side effects), pause and request confirmation. The agent presents: "I'm about to do X because Y. Confirm?" The human can approve, redirect, or abort.
+**Human-in-the-loop gates.** Before any irreversible action (deleting files, sending emails, committing to a branch, making an API — a programmatic interface that lets one piece of software call another directly — call with side effects), pause and request confirmation. The agent presents: "I'm about to do X because Y. Confirm?" The human can approve, redirect, or abort.
 
 **Dead-man's switch.** If the agent hasn't reported progress in N minutes, alert the operator. This catches infinite loops, stuck states, and runaway API spending before they become catastrophic.
 
@@ -64,8 +64,10 @@ class AgentState:
 
 # Actions that require human confirmation before execution.
 # Important: this gate works because the agent emits action names as structured text
-# that we parse before executing. If the agent calls tools directly (MCP, function
-# calling), the gate must be enforced at the tool execution layer, not by text parsing.
+# that we parse before executing. If the agent calls tools directly (MCP -- Model
+# Context Protocol, a standard way of connecting a model to external tools and
+# data sources -- or native function calling), the gate must be enforced at the
+# tool execution layer, not by text parsing.
 GATED_ACTIONS = {"delete_file", "send_email", "git_commit", "api_call_with_side_effects"}
 
 
@@ -247,7 +249,7 @@ Temporal is the right choice when you need guarantees: durable execution that su
 
 **Oscillation.** Without a stopping condition, agents loop: try step A, fail, try alternative, fail, try A again. Add: "if you've tried the same approach twice and failed, stop and report rather than retrying." Track attempts per step.
 
-**Runaway API spending.** A 50-step agent making 3 API calls per step at $15/Mtok can cost more than expected before you notice. Set per-run budget limits and surface token counts in checkpoint logs — see [[Cost Tracking]] for enforcement patterns.
+**Runaway API spending.** A 50-step agent making 3 API calls per step at \$15/Mtok (dollars per million tokens, tokens being roughly words or word-fragments — the unit calls are billed and measured in) can cost more than expected before you notice — at, say, 2,000 tokens per call, that's 50 × 3 × 2,000 = 300,000 tokens, or roughly \$4.50, for one run alone. Set per-run budget limits and surface token counts in checkpoint logs — see [[Cost Tracking]] for enforcement patterns.
 
 **Context amnesia.** After summarization, the agent may forget specific decisions it made earlier that have implications for later steps. Store key decisions and constraints explicitly in a `artifacts["decisions"]` list that survives summarization.
 
@@ -257,7 +259,7 @@ Temporal is the right choice when you need guarantees: durable execution that su
 
 - **Research assistant**: given a research question, plan a multi-step investigation — search, read, synthesize, write — with checkpoints between major phases and a human review before the final output is published.
 - **Codebase refactor agent**: given a refactor spec, enumerate affected files, plan the changes, apply them file by file with test runs between batches, stopping for human review if tests fail.
-- **Data pipeline constructor**: given a data source and desired output schema, plan and build an ETL pipeline — discover schema, write transformations, validate with sample data, generate tests — persisting state so the pipeline can be resumed if any step fails.
+- **Data pipeline constructor**: given a data source and desired output schema, plan and build an ETL (Extract, Transform, Load — the standard shape of a data pipeline that pulls data from a source, reshapes it, and writes it to a destination) pipeline — discover schema, write transformations, validate with sample data, generate tests — persisting state so the pipeline can be resumed if any step fails.
 
 ## Going deeper
 
