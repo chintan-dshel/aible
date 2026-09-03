@@ -16,7 +16,7 @@ A multi-agent system is an architecture where multiple model calls — often wit
 
 Single LLM calls have hard limits:
 
-**Context window.** Even at 200K tokens, there are tasks — processing a full codebase, synthesizing a book-length corpus, running a week-long research project — that exceed what fits in one context.
+**Context window.** Even at 200K tokens (roughly ¾ of a word each — 200K tokens is on the order of a 150,000-word book), there are tasks — processing a full codebase, synthesizing a book-length corpus, running a week-long research project — that exceed what fits in one context.
 
 **Quality through specialization.** A single model doing everything (research + analysis + writing + code review + validation) does each step worse than a model given a focused role and only the context it needs.
 
@@ -56,13 +56,13 @@ flowchart LR
 
 **Hierarchical:** An orchestrator delegates to subagents that each have their own tools and decision loops. Subagents can in turn delegate. Use for complex multi-step tasks where intermediate judgment is needed, not just transformation.
 
-**Router:** A classifier routes incoming tasks to the appropriate specialist agent rather than broadcasting to all. Use when input types are heterogeneous and different handlers are clearly better for different categories.
+**Router:** A classifier — something that automatically sorts an input into one of several categories — routes incoming tasks to the appropriate specialist agent rather than broadcasting to all. Use when input types are heterogeneous and different handlers are clearly better for different categories.
 
 ### Coordination patterns
 
-**Handoff via context.** The simplest form: the output of one agent is concatenated into the next agent's prompt. No shared state, no coordination infrastructure. Works for simple pipelines; breaks for complex dependencies.
+**Handoff via context.** The simplest form: the output of one agent is concatenated (joined end-to-end as text) into the next agent's prompt. No shared state, no coordination infrastructure. Works for simple pipelines; breaks for complex dependencies.
 
-**Shared message store.** Agents read and write to a shared conversation log or structured state object. Each agent sees only the history relevant to it. LangGraph implements this as a graph with a typed state dictionary:
+**Shared message store.** Think of it as a shared whiteboard the agents all read from and write to, rather than each one only seeing what was handed to it directly. Agents read and write to a shared conversation log or structured state object. Each agent sees only the history relevant to it. LangGraph — a Python library for building stateful multi-step agent workflows as a directed graph, where nodes are agent functions and edges define the flow of control between them — implements this as a graph with a typed state dictionary (a shared record with a fixed, named set of fields, so every node agrees on what's in it):
 
 ```python
 from langgraph.graph import StateGraph
@@ -82,6 +82,8 @@ graph.add_edge("researcher", "analyst")
 graph.add_edge("analyst", "writer")
 ```
 
+This defines the shared state's shape once (`ResearchState`), then chains three agent functions together as nodes in a graph, with each edge saying "run this node next" — the researcher's output becomes part of the shared state the analyst reads, and so on.
+
 **Human in the loop.** An agent pauses and asks for human confirmation before taking an irreversible action (sending an email, executing code, making a purchase). Essential for high-stakes agents; the pause point should be explicit in the graph design.
 
 ### Trust and verification
@@ -91,7 +93,7 @@ In a multi-agent system, one agent's output is another agent's input. Errors com
 Mitigation patterns:
 - **Validator agent**: a separate agent that checks each intermediate output against a rubric before passing it on
 - **Critic-revise loop**: the producing agent and a critic iterate until the critic approves
-- **Structured handoffs**: use typed schemas (Pydantic) for inter-agent communication rather than free text — type errors surface immediately rather than propagating silently
+- **Structured handoffs**: use typed schemas — a fixed, named shape a message must match, checked automatically (Pydantic is the standard Python library for this) — for inter-agent communication rather than free text, so a message with a missing or wrong-shaped field is rejected immediately (a "type error") rather than silently passed along to break something downstream
 
 ## Concrete example
 
@@ -188,7 +190,7 @@ print(result["synthesis"])
 - A single well-crafted prompt solves the task — multi-agent adds coordination overhead for no benefit
 - Subtasks are tightly coupled and share most of the same context — you'll duplicate tokens and add latency
 - Your error handling isn't designed for compound failures — a three-agent pipeline with no validation can silently produce subtly wrong output that passes superficial checks
-- Latency matters — each additional agent adds at least one round-trip; a three-agent pipeline is 3× the minimum latency of a single call
+- Latency (the delay before a response comes back) matters — each additional agent adds at least one round-trip; a three-agent pipeline is 3× the minimum latency of a single call
 
 #### The practical question
 

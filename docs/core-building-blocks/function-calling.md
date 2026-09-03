@@ -42,7 +42,7 @@ flowchart LR
 
 ### Tool schemas
 
-Tools are defined as JSON Schema objects. The model uses the `name` and `description` to decide when to call the tool; the `input_schema` tells it what arguments are valid. Description quality matters more than most people expect — a poorly described tool gets called with wrong arguments or not called when it should be.
+Tools are defined as JSON Schema objects — a template, in a standard machine-readable format, describing what shape a piece of data must have. The model uses the `name` and `description` to decide when to call the tool; the `input_schema` tells it what arguments are valid. Description quality matters more than most people expect — a poorly described tool gets called with wrong arguments or not called when it should be.
 
 **Good vs. bad description:**
 
@@ -92,6 +92,8 @@ TOOLS = [
 ```
 
 ### The execution loop
+
+The loop below keeps calling the model, running whatever tool it asks for, and feeding the result back in — repeating until the model has enough information to answer without another tool call.
 
 ```python
 import anthropic
@@ -174,7 +176,7 @@ print(answer)
 
 :::caution[eval() in tool handlers is a security vulnerability]
 
-The `calculate` function above uses `eval()` with AST node-type filtering. This is **not safe for production**: AST-level checks can be bypassed by resource-exhaustion inputs (e.g., `10**10**10**10`) and infinite loops that don't trigger node-type guards. In production, use a sandboxed evaluator:
+The `calculate` function above uses `eval()` with AST (Abstract Syntax Tree — the parsed, structural representation of code that `ast.parse` produces below) node-type filtering. This is **not safe for production**: AST-level checks can be bypassed by resource-exhaustion inputs (e.g., `10**10**10**10`, an expression that's technically just arithmetic but takes so long and so much memory to actually compute that it functions as a denial-of-service attack) and infinite loops that don't trigger node-type guards. In production, use a sandboxed evaluator — a restricted execution environment that can't reach the filesystem, network, or other processes, and can be cut off if it runs too long:
 
 ```python
 from asteval import Interpreter
@@ -285,7 +287,7 @@ def search_knowledge_base(query: str, top_k: int = 3) -> dict:
 
 - The information is stable and common enough to be in the model's weights — prompting is faster and cheaper
 - The number of round-trips makes latency unacceptable (each tool call adds at least one network round-trip)
-- The tool call is purely for retrieval — RAG may be cleaner (retrieval happens before the model call, not interleaved with it)
+- The tool call is purely for retrieval — RAG (retrieval-augmented generation: search a document store and paste the relevant results into the prompt) may be cleaner, since retrieval happens before the model call, not interleaved with it
 
 #### The practical question
 
@@ -315,11 +317,11 @@ Error handling in tools is usually an afterthought and shouldn't be. When a tool
 
 **2. Hallucinated arguments.** The model calls a tool with plausible-sounding but wrong arguments — e.g., `ticker: "APPLE"` instead of `"AAPL"`. Validate inputs server-side and return an error with clear guidance: `{"error": "Unknown ticker 'APPLE'. Use the standard NYSE/NASDAQ symbol, e.g. 'AAPL'."}`.
 
-**3. Infinite tool loops.** If a tool consistently returns errors or ambiguous results, the model may call it repeatedly without making progress. Implement a maximum number of turns (10 is a safe default) and break the loop with a user-facing error rather than burning tokens indefinitely.
+**3. Infinite tool loops.** If a tool consistently returns errors or ambiguous results, the model may call it repeatedly without making progress. Implement a maximum number of turns (10 is a safe default) and break the loop with a user-facing error rather than burning tokens (the units API calls are billed and measured in) indefinitely.
 
 **4. Parallel call race conditions.** When the model issues multiple tool calls, executing them in the wrong order or failing to collect all results before continuing produces inconsistent behavior. Always wait for all parallel calls to complete before appending results to the conversation.
 
-**5. Context window inflation.** Tool results are injected into the conversation as messages. Long tool results (full web pages, large database dumps) accumulate quickly. Truncate tool outputs to the minimum needed: return the first 2,000 characters of a web page, not the full HTML.
+**5. Context window inflation.** Tool results are injected into the conversation as messages, adding to the context window — the block of text the model sees on every subsequent call. Long tool results (full web pages, large database dumps) accumulate quickly. Truncate tool outputs to the minimum needed: return the first 2,000 characters of a web page, not the full HTML.
 
 **6. Unsafe tool execution.** `eval()` in the calculate example above is a security hazard in production. Use a sandboxed evaluator (e.g., `asteval`, `sympy`, or a subprocess with resource limits). Never pass model-generated strings directly to `eval`, `exec`, `subprocess.run`, or SQL queries without sanitization.
 

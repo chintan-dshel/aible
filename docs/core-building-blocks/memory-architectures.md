@@ -8,9 +8,9 @@ description: Giving agents persistent, queryable state — in-context, external 
 
 ## What it is
 
-Memory architecture is how you give an agent access to information that doesn't fit in a single context window, persists across conversation turns, or needs to be retrieved selectively from a large store.
+Memory architecture is how you give an agent access to information that doesn't fit in a single context window — the block of text the model can see and use in one call — persists across conversation turns, or needs to be retrieved selectively from a large store.
 
-A language model is stateless by default: each API call is independent, the context window is the only working memory, and nothing persists between sessions unless you engineer it. Memory architectures are the engineering solutions to that constraint.
+A language model is stateless by default: it remembers nothing from one call to the next. Each API call is independent, the context window is the only working memory, and nothing persists between sessions unless you engineer it. Memory architectures are the engineering solutions to that constraint.
 
 ## The problem it solves
 
@@ -22,7 +22,7 @@ Four distinct problems appear as agents grow in complexity:
 
 **Knowledge at scale.** The information the agent needs (thousands of documents, a company's entire knowledge base) is far too large to fit in any context window. It needs to retrieve relevant fragments on demand.
 
-**Parametric staleness.** The model's weights encode knowledge as of its training cutoff. Anything newer — your product docs, today's prices, a user's updated preferences — can't be in the weights.
+**Parametric staleness.** The model's weights (the internal numbers it learned during training) encode knowledge as of its training cutoff. Anything newer — your product docs, today's prices, a user's updated preferences — can't be in the weights.
 
 Different memory types solve different problems in this list.
 
@@ -61,13 +61,13 @@ messages = [
 ]
 ```
 
-**Limits:** grows linearly with conversation length; truncated at the context window boundary; not shared across sessions.
+**Limits:** grows in direct proportion to conversation length — double the conversation, double the tokens you pay for on every subsequent call; truncated at the context window boundary; not shared across sessions.
 
 **When to use:** fewer than ~20 turns of relevant history, or when the full history always matters (coding sessions, document editing).
 
 #### External semantic memory (vector database)
 
-Relevant past interactions, facts, and documents are embedded and stored in a vector database. At query time, the current turn is embedded and the most similar stored memories are retrieved and injected into the prompt.
+Think of it as a searchable library rather than a stack of sticky notes: instead of keeping everything in the prompt, you store it externally and pull back only what's relevant to the current question. Relevant past interactions, facts, and documents are converted into vectors — lists of numbers that capture meaning, so similar ideas end up with similar numbers ("embedded") — and stored in a vector database. At query time, the current turn is embedded the same way, and the most similar stored memories are retrieved and injected into the prompt.
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -147,11 +147,11 @@ def get_recent_events(user_id: str, limit: int = 10) -> list[dict]:
 
 #### Parametric memory (fine-tuned weights)
 
-Knowledge baked into the model's weights via fine-tuning or continued pretraining. Always available without retrieval; zero latency; no retrieval errors.
+Knowledge baked into the model's weights via fine-tuning (continuing to train the model on your own data) or continued pretraining. Always available without retrieval; zero latency; no retrieval errors.
 
 **Limits:** expensive to update; introduces training/serving overhead; knowledge is frozen until the next fine-tuning run. Not suitable for frequently-changing information.
 
-**When to use:** stable domain knowledge that never changes and is queried constantly (e.g., a specialized medical model that always needs to know drug interaction rules). Rarely the right choice for dynamic information — use RAG instead.
+**When to use:** stable domain knowledge that never changes and is queried constantly (e.g., a specialized medical model that always needs to know drug interaction rules). Rarely the right choice for dynamic information — use RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt at query time, rather than baking facts into the weights) instead.
 
 ### Combining memory types
 
@@ -353,7 +353,7 @@ The hardest part of memory architecture isn't the retrieval — it's deciding wh
 
 **4. Memory injection prompt contamination.** Injecting retrieved memories into the system prompt without delimiters lets the model confuse memories for instructions. Fix: use clear delimiters ("Relevant past context: [START] ... [END]") and explicitly label memories as context, not instructions.
 
-**5. In-context history bloat.** Passing the full conversation history on every call costs tokens proportionally. Fix: implement history trimming (keep last N turns) or summarization (compress old turns into a summary) before the context limit is reached — not after.
+**5. In-context history bloat.** Passing the full conversation history on every call costs tokens (roughly, words or word-fragments — the unit a model bills and measures length by) proportionally. Fix: implement history trimming (keep last N turns) or summarization (compress old turns into a summary) before the context limit is reached — not after.
 
 **6. Embedding model mismatch.** You change embedding models mid-deployment. Old entries in the vector store become incompatible. Fix: tag each stored embedding with the model name and version; re-embed on model change rather than mixing.
 
