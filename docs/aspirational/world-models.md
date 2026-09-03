@@ -16,11 +16,11 @@ For practitioners, the question matters because: systems with genuine world mode
 
 ## How it works under the hood
 
-**Explicit world models (Dreamer-style).** In model-based reinforcement learning, a world model is a learned function that predicts next state given current state and action. Dreamer (Hafner et al.) learns a Recurrent State Space Model (RSSM) in a compact latent space: given an encoded observation, the model predicts the next latent state. The agent then plans by rolling out trajectories *in latent space* — thousands of simulated futures — and selecting the action sequence that leads to the best predicted outcome. This is never "imagining" in a conscious sense; it's iterated matrix multiplication over a learned compressed representation.
+**Explicit world models (Dreamer-style).** In model-based reinforcement learning (RL, an approach where a system learns by taking actions and getting reward or penalty signals back), a world model is a learned function that predicts next state given current state and action. In plain terms, that's a next-state predictor: feed it "here's the situation, here's what I'm about to do," and it outputs "here's roughly what would happen." Dreamer (Hafner et al.) learns this predictor not in raw pixels but in a compact latent space — a compressed, numeric summary of a situation that the model itself learned, small enough to run thousands of hypothetical "what happens next" predictions quickly. This compressed representation is called a Recurrent State Space Model (RSSM): given an encoded observation, the model predicts the next latent state. The agent then plans by rolling out trajectories *in latent space* — thousands of simulated futures — and selecting the action sequence that leads to the best predicted outcome. This is never "imagining" in a conscious sense; it's iterated matrix multiplication (repeated numeric grid computations) over that learned compressed representation.
 
-**The LLM world model debate.** Large language models trained on text-predicted-next-token implicitly see vast descriptions of how the world works: physics, causality, social dynamics, geography. Do they learn a world model in the process?
+**The LLM world model debate.** Large language models, trained by repeatedly predicting the next word in real text, implicitly see vast descriptions of how the world works: physics, causality, social dynamics, geography. Do they learn a world model in the process?
 
-Evidence for: GPT-4 and Claude can reason about counterfactuals, predict consequences of hypothetical actions, and answer questions about physical processes they've never been explicitly trained to answer. Probing experiments (Gurnee & Tegmark, 2023) found that LLM internal representations linearly encode spatial and temporal coordinates — a property consistent with a learned world model.
+Evidence for: GPT-4 and Claude can reason about counterfactuals, predict consequences of hypothetical actions, and answer questions about physical processes they've never been explicitly trained to answer. Probing experiments — training a small, separate classifier to read a model's internal numbers and see what information is recoverable from them — (Gurnee & Tegmark, 2023) found that those internal numbers directly and simply encode spatial and temporal coordinates ("linearly encode": recoverable by a simple weighted sum, not buried in some more convoluted pattern) — a property consistent with a learned world model.
 
 Evidence against: LLMs fail systematically on simple tasks requiring reliable spatial reasoning (left/right, inside/outside), exact counting, and novel physical simulations (LeCun, 2022; Chollet, 2019). They are sensitive to prompt framing in ways a true world model wouldn't be. They often confabulate plausible-sounding but wrong consequences when asked about edge cases.
 
@@ -28,7 +28,7 @@ A prevalent view as of mid-2025 (contested — see LeCun in Going Deeper for the
 
 ## Concrete example
 
-This example shows the Dreamer-style architecture conceptually — not a full training loop (which requires an environment and thousands of GPU hours), but the prediction/planning structure:
+This example shows the Dreamer-style architecture conceptually — not a full training loop (which requires an environment and thousands of GPU hours), but the prediction/planning structure. The first function asks an LLM to act as a crude world model, predicting what happens after an action; the second uses that prediction repeatedly to score candidate actions against a goal and pick the best one — a language-domain stand-in for the latent-space rollout Dreamer does numerically:
 
 ```python
 import anthropic
@@ -170,7 +170,7 @@ class RSSM:
 
 **Dreamer-style explicit world models:**
 - Production-ready only for constrained, well-defined environments (game playing, robotic manipulation in controlled settings)
-- Not yet practical for open-ended real-world deployment — require vast environment interaction to train, and fail on distribution shift
+- Not yet practical for open-ended real-world deployment — require vast environment interaction to train, and fail on distribution shift (real-world inputs that look different from anything seen during training)
 
 **The honest answer:** If your task needs reliable counterfactual prediction over a structured physical domain, use a physics simulator or domain model, not an LLM. If your task involves reasoning about likely consequences in the language domain (business decisions, social dynamics, code behavior), LLMs as world models are useful with appropriate uncertainty.
 
@@ -190,9 +190,9 @@ class RSSM:
 
 **Distribution shift breaks the model.** A world model trained in environment A fails in environment B, even if B seems similar. LLMs have this problem too — they fail on physical edge cases outside their training distribution. Never assume a learned world model generalizes cleanly.
 
-**Overconfidence in LLM world models.** LLMs produce fluent, confident-sounding predictions for physical scenarios they can't actually reason about correctly. Treat LLM world model predictions as soft priors, not ground truth. Ask for uncertainty estimates.
+**Overconfidence in LLM world models.** LLMs produce fluent, confident-sounding predictions for physical scenarios they can't actually reason about correctly. Treat LLM world model predictions as soft priors — tentative starting estimates to be updated with real evidence, not settled facts — not ground truth (the actual, verified correct answer). Ask for uncertainty estimates.
 
-**The "Chinese Room" failure mode.** An LLM that correctly predicts "the glass breaks when it falls" may have learned this as a statistical pattern from text rather than understanding glass fragility. The prediction may be right for the common case but wrong for physically unusual scenarios (e.g., a glass falling on carpet vs. tile). Test edge cases deliberately.
+**The "Chinese Room" failure mode** — named for a thought experiment about whether following rules that produce the right output means you actually understand what you're doing. An LLM that correctly predicts "the glass breaks when it falls" may have learned this as a statistical pattern from text rather than understanding glass fragility. The prediction may be right for the common case but wrong for physically unusual scenarios (e.g., a glass falling on carpet vs. tile). Test edge cases deliberately.
 
 ## Project ideas
 

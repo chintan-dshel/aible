@@ -8,9 +8,9 @@ description: HNSW, IVF, and the tradeoffs between pgvector, Pinecone, Weaviate, 
 
 ## What it is
 
-A vector database is a storage system designed to efficiently index and retrieve high-dimensional embedding vectors by similarity — finding the nearest neighbors to a query vector across millions or billions of stored vectors in milliseconds.
+A vector database is a storage system designed to efficiently index and retrieve high-dimensional embedding vectors — an embedding being a list of numbers that represents a piece of text's meaning, where similar meanings produce similar number-lists — by similarity: finding the nearest neighbors to a query vector across millions or billions of stored vectors in milliseconds.
 
-Unlike a relational database that retrieves rows by exact key match, a vector database retrieves vectors by *geometric proximity*. Given a query embedding, it returns the k most similar stored embeddings (and their associated metadata) using approximate nearest neighbor (ANN) search algorithms that trade a small amount of recall for large gains in speed.
+Unlike a relational database that retrieves rows by exact key match, a vector database retrieves vectors by *geometric proximity* — think of each embedding as a point plotted in space, and search as finding the nearest points to a new one. Given a query embedding, it returns the k most similar stored embeddings (and their associated metadata) using approximate nearest neighbor (ANN) search algorithms that trade a small amount of recall (how many of the true matches actually get found) for large gains in speed.
 
 ## The problem it solves
 
@@ -22,12 +22,13 @@ Vector databases solve this with specialized indexes — data structures that pr
 
 ### Approximate nearest neighbor (ANN) algorithms
 
-**Flat search (exact)** — compute distance from the query to every stored vector. Exact recall, but O(n) per query. Acceptable up to ~100K vectors; impractical beyond.
+**Flat search (exact)** — compute distance from the query to every stored vector. Exact recall, but cost grows in direct proportion to how many vectors are stored ($O(n)$ per query) — at 100K vectors that's still fast, but at 100 million it means checking 1,000× as many candidates for every single search. Acceptable up to ~100K vectors; impractical beyond.
 
-**IVF (Inverted File Index)** — partition the vector space into clusters using k-means. At query time, search only the nearest N clusters rather than all vectors. Faster than flat search at the cost of recall (vectors near cluster boundaries may be missed).
+**IVF (Inverted File Index)** — partition the vector space into clusters using k-means (an algorithm that groups similar points together automatically, without being told the groups in advance). At query time, search only the nearest N clusters rather than all vectors. Faster than flat search at the cost of recall (vectors near cluster boundaries may be missed).
 
 ```
 Training phase: k-means clusters all vectors → k centroids
+  (a centroid is the single point at the center of one cluster)
 Query phase: find the nearest m centroids → search vectors in those m clusters only
 Trade-off: m controls the speed/recall trade-off (nprobe parameter in FAISS)
 ```
@@ -37,10 +38,12 @@ Trade-off: m controls the speed/recall trade-off (nprobe parameter in FAISS)
 ```
 Layers: top = few long-range connections, bottom = many short-range connections
 Query: start at top, navigate down by greedy best-first search
-Trade-off: ef_construction controls build recall vs. time; ef_search controls query recall vs. time
+Trade-off: ef_construction controls how thoroughly the graph is built (more time now,
+  better recall later); ef_search controls how thoroughly a query explores the graph
+  (more time per query, in exchange for finding more of the true nearest neighbors)
 ```
 
-**Product Quantization (PQ)** — compresses vectors before storing by splitting them into subvectors and quantizing each independently. Reduces memory 4–16× at the cost of some recall. Often combined with IVF (IVF-PQ) for large-scale deployment.
+**Product Quantization (PQ)** — compresses vectors before storing by splitting them into subvectors and quantizing (rounding each number to the nearest value from a small, pre-built set, the way rounding to the nearest cent compresses an exact decimal) each independently. Reduces memory 4–16× at the cost of some recall. Often combined with IVF (IVF-PQ) for large-scale deployment.
 
 ### Index selection in practice
 
@@ -62,7 +65,8 @@ Filtering strategies:
 - **Hybrid**: use the metadata filter to select a subset of the index, then run ANN within that subset.
 
 ```python
-# Qdrant: pre-filter by user_id, then similarity search
+# Qdrant (a vector database, one of the tools listed below): pre-filter
+# by user_id, then similarity search
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 
@@ -86,11 +90,11 @@ results = client.search(
 | Euclidean (L2) | Embeddings not normalized; absolute magnitude matters |
 | Dot product | Embeddings trained with dot product objective (some retrieval models) |
 
-For text embeddings, cosine similarity is almost always correct. **Do not assume your vector database normalizes automatically.** Qdrant and Weaviate do not normalize vectors by default — if you configure dot product distance, you get raw dot product, not cosine similarity. To get cosine semantics with dot product configuration, L2-normalize your embeddings before indexing them. Pinecone normalizes internally; check your specific tool's documentation before assuming normalization behavior.
+For text embeddings, cosine similarity — a measure of the angle between two vectors, not their length, so it captures "point in the same direction" regardless of magnitude — is almost always correct. **Do not assume your vector database normalizes automatically.** Qdrant and Weaviate do not normalize (rescale every vector to the same length) vectors by default — if you configure dot product distance (multiply matching numbers between two vectors and add the results, without adjusting for length first), you get raw dot product, not cosine similarity. To get cosine semantics with dot product configuration, L2-normalize your embeddings before indexing them. Pinecone normalizes internally; check your specific tool's documentation before assuming normalization behavior.
 
 ## Concrete example
 
-A complete RAG vector store setup with Qdrant:
+A complete RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt) vector store setup with Qdrant — the code below embeds a set of documents, stores them in a Qdrant collection, and then embeds a new query and searches for the closest matches:
 
 ```python
 from qdrant_client import QdrantClient

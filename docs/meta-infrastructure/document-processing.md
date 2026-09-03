@@ -8,7 +8,7 @@ description: Parsing, chunking strategies, OCR, and table extraction — turning
 
 ## What it is
 
-Document processing pipelines are the pre-processing layer that transforms raw documents — PDFs, Word files, HTML pages, scanned images, spreadsheets — into clean, structured text that an LLM can reason over. They sit upstream of every RAG system and any application that ingests unstructured data.
+Document processing pipelines are the pre-processing layer that transforms raw documents — PDFs, Word files, HTML pages, scanned images, spreadsheets — into clean, structured text that an LLM can reason over. They sit upstream of every RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt) system and any application that ingests unstructured data.
 
 The pipeline typically covers: format parsing (extract text from the source format), structure detection (identify headings, paragraphs, tables, lists), cleaning (remove noise, artifacts, and boilerplate), and chunking (split into appropriately sized pieces for indexing).
 
@@ -30,7 +30,9 @@ The quality of your document processing directly determines the quality of your 
 
 Different document formats require different parsers:
 
-**PDF:** The most common and problematic format. PDFs can be: text-based (extractable), image-based (scanned, requires OCR), or hybrid (text and images mixed).
+**PDF:** The most common and problematic format. PDFs can be: text-based (extractable), image-based (scanned, requires OCR — optical character recognition: software that reads text out of a picture of a page), or hybrid (text and images mixed).
+
+The function below reads a PDF page by page and checks each page's "text coverage" — whether real extractable text came back at all, which is how you detect a scanned page before it silently produces empty or garbled content:
 
 ```python
 import pypdf
@@ -86,7 +88,7 @@ def extract_html_content(url_or_html: str) -> dict:
     }
 ```
 
-**Word (.docx):**
+**Word (.docx):** the function below walks every paragraph in the document, keeping non-empty ones and marking headings with markdown `#` symbols so the structure survives the conversion to plain text:
 
 ```python
 from docx import Document as DocxDocument
@@ -135,7 +137,7 @@ def smart_pdf_extract(path: str) -> list[dict]:
 
 ### Table extraction
 
-Tables in PDFs are notoriously difficult — text-based PDF parsers linearize rows and columns in ways that lose structure. Specialized table extractors use layout analysis:
+Tables in PDFs are notoriously difficult — text-based PDF parsers linearize rows and columns in ways that lose structure. Specialized table extractors use layout analysis — looking at where text is actually positioned on the page, not just the order it was written in, to figure out which words belong to which row and column:
 
 ```python
 import pdfplumber
@@ -356,7 +358,7 @@ For PDFs with complex layouts (multi-column text, mixed text and images), consid
 
 **5. Chunk boundary cuts mid-sentence.** Fixed-size character or word chunking cuts sentences arbitrarily. Use sentence-boundary-aware chunking or add overlap (50–100 words) to preserve context across boundaries.
 
-**6. Encoding artifacts in extracted text.** Ligatures (fi, fl), special characters, and non-ASCII characters often appear as garbled sequences or question marks in extracted text. Run a unicode normalization step and detect/log high artifact rates.
+**6. Encoding artifacts in extracted text.** Ligatures (fi, fl), special characters, and non-ASCII characters often appear as garbled sequences or question marks in extracted text. Run a unicode normalization step — collapsing different byte-representations of the same character down to one consistent form — and detect/log high artifact rates.
 
 **7. Large documents indexed as too few chunks.** A 200-page report chunked into 20 large chunks is under-indexed — queries that should retrieve page 47 can't because the chunk containing page 47 also contains pages 45–50 and dilutes the relevance. Prefer smaller chunks (300–500 tokens) with overlap.
 

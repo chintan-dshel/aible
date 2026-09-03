@@ -1,6 +1,6 @@
 {
-  "label": "Foundations",
-  "position": 1,
+  "label": "AI Foundations",
+  "position": 3,
   "link": {
     "type": "doc",
     "id": "foundations/index"

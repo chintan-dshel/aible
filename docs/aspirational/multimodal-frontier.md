@@ -10,21 +10,23 @@ Models that process and generate across more than one modality — image + text,
 
 ## The problem it solves
 
-Most real-world information isn't text. A customer service photo, an audio complaint, a scanned invoice, a screenshot of a bug — all require non-text understanding before any reasoning can happen. The traditional pipeline (OCR → text → LLM, or audio → ASR → text → LLM) loses information at every handoff and breaks for content that doesn't reduce cleanly to text (spatial relationships in images, tone in audio, motion in video).
+Most real-world information isn't text. A customer service photo, an audio complaint, a scanned invoice, a screenshot of a bug — all require non-text understanding before any reasoning can happen. The traditional pipeline (OCR — optical character recognition, software that reads text out of a picture — → text → LLM, or audio → ASR — automatic speech recognition, converting spoken audio to text — → text → LLM) loses information at every handoff and breaks for content that doesn't reduce cleanly to text (spatial relationships in images, tone in audio, motion in video).
 
 ## How it works under the hood
 
-**Vision.** Image inputs are encoded as patch embeddings. A ViT (Vision Transformer) splits the image into fixed-size patches (e.g., 14×14 px), projects each patch into the model's token dimension, and processes them through the transformer alongside text tokens. The model learns to align image regions with text tokens during pretraining.
+**Vision.** Image inputs are encoded as patch embeddings. A ViT (Vision Transformer) splits the image into fixed-size patches (e.g., 14×14 px), projects each patch into the model's token dimension — the same-sized numeric slot a text token (roughly, a word or word-fragment) occupies — and processes them through the transformer alongside text tokens. The model learns to align image regions with text tokens during pretraining.
 
 Some architectures use a separate vision encoder (CLIP, SigLIP) whose output is projected into the LLM's embedding space via a learned adapter. Others (GPT-4o, Gemini) are natively multimodal — images and text share the same token vocabulary from pretraining.
 
-**Audio.** Speech is typically encoded as a log-mel spectrogram, then processed by a specialized encoder (Whisper-style) that produces token-rate representations the LLM can attend to. End-to-end audio models like GPT-4o's voice mode bypass the spectrogram step and encode audio directly into the shared token space, enabling the model to hear tone, pacing, and non-speech sounds that pure transcription loses.
+**Audio.** In plain terms: audio gets converted into a visual-ish representation of pitch and loudness over time, then chopped into pieces the model can treat just like text tokens. Speech is typically encoded as a log-mel spectrogram (a chart of which frequencies are present at each moment, on a scale that roughly matches human hearing), then processed by a specialized encoder (Whisper-style) that produces token-rate representations the LLM can attend to. End-to-end audio models like GPT-4o's voice mode bypass the spectrogram step and encode audio directly into the shared token space, enabling the model to hear tone, pacing, and non-speech sounds that pure transcription loses.
 
-**Video.** Frame sampling (1–8 fps) + ViT encoding per frame is the current standard. True temporal attention across frames is expensive; most production systems treat video as a sequence of images with a summarization step. Dense video understanding (tracking objects, understanding causation across time) remains an open research problem.
+**Video.** Frame sampling (1–8 fps) + ViT encoding per frame is the current standard. Ideally the model would weigh how frames relate to each other across time the same way it weighs words in a sentence ("temporal attention"), but that's expensive at video scale; most production systems treat video as a sequence of images with a summarization step instead. Dense video understanding (tracking objects, understanding causation across time) remains an open research problem.
 
 **Unified models.** Gemini 1.5 Pro, GPT-4o, and Claude 3.5+ accept interleaved text and image inputs in a single context; GPT-4o also accepts audio natively. Claude's input modalities are text and images only — audio requires a separate transcription step. Output modalities are more restricted — text generation is standard; image generation requires a separate model (DALL-E, Imagen) or native image output (Gemini Imagen integration, GPT-4o image generation).
 
 ## Concrete example
+
+The functions below cover the three common vision patterns: send a local image file, send an image by URL instead of uploading it, and extract structured data (a filled-in JSON object) from an image against a schema you supply.
 
 ```python
 import anthropic
@@ -187,7 +189,7 @@ if __name__ == "__main__":
         "due_date": "string (YYYY-MM-DD)",
         "line_items": [{"description": "string", "amount": "number"}],
     }
-    # extracted = extract_structured_data_from_image("invoice.jpg", schema)
+    # extracted = extract_structured_data_from_image("invoice.jpg", schema)  # JSON out
 
     # 3. Multi-image comparison
     # comparison = process_multiple_images(
@@ -212,7 +214,7 @@ if __name__ == "__main__":
 - Real-time video analysis at meaningful frame rates — cost and latency are prohibitive
 - Counting objects accurately when count > 10
 
-**Audio:** End-to-end audio LLMs (GPT-4o voice) are impressive but still early. For production transcription, Whisper + LLM is more reliable and cheaper. Real-time voice with low latency requires specialized infrastructure (WebRTC, streaming ASR).
+**Audio:** End-to-end audio LLMs (GPT-4o voice) are impressive but still early. For production transcription, Whisper + LLM is more reliable and cheaper. Real-time voice with low latency requires specialized infrastructure (WebRTC — a browser standard for low-delay audio/video streaming, streaming ASR).
 
 **Video:** Treat as image sequences. Temporal understanding is weak. Don't expect the model to track objects reliably across frames or understand cause-and-effect in video without explicit prompting.
 
@@ -223,7 +225,7 @@ if __name__ == "__main__":
 | Claude Vision API | Image + text understanding — strong on documents and screenshots |
 | GPT-4o | Native multimodal — image, audio, video in one context |
 | Whisper | Open-source ASR — production-grade speech-to-text |
-| Deepgram / AssemblyAI | Managed real-time ASR with speaker diarization |
+| Deepgram / AssemblyAI | Managed real-time ASR with speaker diarization (automatically labeling which speaker said what) |
 | ElevenLabs / OpenAI TTS | Text-to-speech output |
 | Tesseract / AWS Textract | Dedicated OCR — better than LLM vision for dense text extraction |
 | `pdf2image` | Convert PDF pages to images for vision model processing |
@@ -238,13 +240,13 @@ For document processing at scale, the winning stack is usually: dedicated OCR �
 
 **Token cost for images.** A 1024×1024 image costs roughly 1,590 tokens with Claude. Processing 100 invoices = significant cost. Resize images before sending; most documents don't need full resolution.
 
-**Spatial reasoning failures.** "Is X to the left of Y?" is surprisingly unreliable. For layout-critical tasks (table extraction, form field mapping), supplement vision with structured HTML or accessibility tree data when available.
+**Spatial reasoning failures.** "Is X to the left of Y?" is surprisingly unreliable. For layout-critical tasks (table extraction, form field mapping), supplement vision with structured HTML (the markup language web pages are written in) or accessibility tree (a structured, labeled summary of a page's elements) data when available.
 
 **Video as image frames loses temporal information.** Two consecutive frames showing a ball before and after a bounce look like two static images to a frame-by-frame model. Explicit temporal prompting ("Image 1 was taken 500ms before image 2") helps but doesn't fully solve the problem.
 
 ## Project ideas
 
-- **Invoice processing pipeline**: image → vision model → structured JSON → validation → database insert. Measure extraction accuracy on 100 real invoices and track error rate by field type.
+- **Invoice processing pipeline**: image → vision model → structured JSON (a standard, machine-readable text format) → validation → database insert. Measure extraction accuracy on 100 real invoices and track error rate by field type.
 - **Screenshot bug reporter**: users screenshot a bug, the model describes it, extracts any visible error messages, and files a structured GitHub issue — bridging the gap between "I see something wrong" and a useful bug report.
 - **Multi-document comparison**: given two versions of the same contract as scanned PDFs, identify what changed — using vision to handle the PDF layout and LLM reasoning to explain the significance of differences.
 

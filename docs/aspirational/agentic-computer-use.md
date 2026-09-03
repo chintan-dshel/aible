@@ -10,7 +10,7 @@ Models that look at a screen, decide what to click, type, or scroll, and then ac
 
 ## The problem it solves
 
-Most business software has no API. It has a GUI. Data entry, legacy CRM systems, form submission workflows, and administrative tools were built for humans, not machines. Robotic Process Automation (RPA) tools partially solve this, but they rely on brittle pixel-level scripts that break whenever the UI changes. A vision-capable model can read and operate a GUI the way a human would — adapting to layout changes, reading error messages, and navigating modal dialogs without hardcoded coordinate maps.
+Most business software has no API (a programmatic interface letting one piece of software call another directly). It has a GUI (graphical user interface — screens, buttons, and forms meant for a person to click through). Data entry, legacy CRM systems, form submission workflows, and administrative tools were built for humans, not machines. Robotic Process Automation (RPA) tools partially solve this, but they rely on brittle pixel-level scripts that break whenever the UI changes. A vision-capable model can read and operate a GUI the way a human would — adapting to layout changes, reading error messages, and navigating modal dialogs (pop-up windows that block interaction with the rest of the screen until dismissed) without hardcoded coordinate maps (a fixed list of "click at pixel X, Y" instructions, which break the moment the layout shifts).
 
 Computer use also handles tasks that mix GUI operations with reasoning: "log in, find all invoices from last month, download them, rename each by vendor name."
 
@@ -22,7 +22,7 @@ The model receives a screenshot (or a stream of them), parses the current UI sta
 
 **Action space.** Typical actions: `screenshot`, `left_click(x, y)`, `double_click(x, y)`, `type(text)`, `key(combo)`, `scroll(x, y, direction, amount)`, `drag(start, end)`. Some implementations add higher-level actions like `right_click`, `hover`, `screenshot_region`.
 
-**Vision understanding.** The model must locate UI elements from a screenshot without a parsed DOM. For web content, some implementations also supply HTML or accessibility trees alongside the screenshot — this dramatically improves reliability by giving the model structured element labels rather than raw pixel coordinates.
+**Vision understanding.** The model must locate UI elements from a screenshot without a parsed DOM (Document Object Model — the structured, labeled tree a web browser builds internally to represent a page's elements). For web content, some implementations also supply HTML (the markup language web pages are written in) or accessibility trees (a structured, labeled summary of a page's elements, originally built so screen readers could describe a page aloud) alongside the screenshot — this dramatically improves reliability by giving the model structured element labels rather than raw pixel coordinates.
 
 **Grounding the task.** The model needs a clear task statement and access to the current screenshot. Multi-step tasks benefit from an explicit plan: generate the full list of steps first, then execute them in a sub-loop, checking the screenshot after each.
 
@@ -207,7 +207,7 @@ Playwright is significantly more reliable than pixel-based computer use for web 
 
 **Action drift.** Small errors in each step compound. A click 5px off the target works most of the time but occasionally misses a button, and the agent may not notice because the next screenshot doesn't show an obvious error. After 10 steps, the agent may be operating in an unexpected state.
 
-**Lost context.** Long tasks fill the context window with screenshots. After 15–20 turns, the model may lose track of the original task or the steps already completed. Use explicit step summaries or a separate task state tracker.
+**Lost context.** Long tasks fill the context window — the block of text and images the model can see and use in one call — with screenshots. After 15–20 turns, the model may lose track of the original task or the steps already completed. Use explicit step summaries or a separate task state tracker.
 
 **Modals and pop-ups.** The model sees a modal it didn't expect and either ignores it or clicks dismiss when it should read the content. Pre-warn the model: "If you see a confirmation dialog, read it carefully before acting."
 
@@ -219,7 +219,7 @@ Playwright is significantly more reliable than pixel-based computer use for web 
 
 - **Screen recorder → automation**: record a human completing a task, extract the screenshots and actions, then have a model generate the computer use prompt that reproduces the workflow.
 - **GUI regression tester**: after a UI deploy, run a computer use agent to check that key user flows still work — click "sign up", fill the form, verify the confirmation message. Cheaper than maintaining Selenium scripts.
-- **Data extraction from legacy systems**: build an agent that navigates a legacy ERP, collects monthly report data, and outputs it as structured JSON — eliminating a manual export workflow.
+- **Data extraction from legacy systems**: build an agent that navigates a legacy ERP, collects monthly report data, and outputs it as structured JSON (a standard, machine-readable text format) — eliminating a manual export workflow.
 
 ## Going deeper
 

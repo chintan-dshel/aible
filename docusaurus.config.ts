@@ -5,8 +5,8 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
-  title: 'Aible',
-  tagline: 'A personal AI reference — foundations to frontier.',
+  title: 'Agentic Systems',
+  tagline: 'How to design a multi-agent AI system — patterns, teardowns of systems I built, and the AI reference underneath.',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -78,13 +78,28 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'Aible',
+      title: 'Agentic Systems',
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'mainSidebar',
+          type: 'dropdown',
+          label: 'The Book',
           position: 'left',
+          items: [
+            {to: '/docs/patterns/', label: 'Agentic Architecture Patterns'},
+            {to: '/docs/teardowns/', label: 'Teardowns: Systems I Built'},
+          ],
+        },
+        {
+          type: 'dropdown',
           label: 'Reference',
+          position: 'left',
+          items: [
+            {to: '/docs/foundations/', label: 'AI Foundations'},
+            {to: '/docs/core-building-blocks/', label: 'Agentic Building Blocks'},
+            {to: '/docs/meta-infrastructure/', label: 'Infrastructure and Tooling'},
+            {to: '/docs/production-concerns/', label: 'Running in Production'},
+            {to: '/docs/aspirational/', label: 'The Frontier'},
+          ],
         },
         {
           to: '/docs/glossary',
@@ -95,7 +110,7 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
-      copyright: `Personal AI reference. Built with Docusaurus.`,
+      copyright: `Agentic Systems: Patterns and Teardowns. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
@@ -104,6 +119,49 @@ const config: Config = {
     },
     mermaid: {
       theme: {light: 'neutral', dark: 'dark'},
+      options: {
+        fontFamily:
+          'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        fontSize: 16,
+        themeVariables: {
+          fontSize: '16px',
+          fontFamily:
+            'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        },
+        flowchart: {
+          useMaxWidth: false,
+          htmlLabels: true,
+          curve: 'basis',
+          nodeSpacing: 55,
+          rankSpacing: 75,
+          padding: 14,
+          diagramPadding: 12,
+          wrappingWidth: 220,
+        },
+        sequence: {
+          useMaxWidth: false,
+          wrap: true,
+          width: 170,
+          height: 48,
+          actorMargin: 55,
+          boxMargin: 12,
+          messageMargin: 38,
+          mirrorActors: false,
+          diagramMarginX: 24,
+          diagramMarginY: 14,
+          actorFontSize: 15,
+          messageFontSize: 13,
+          noteFontSize: 13,
+          wrapPadding: 12,
+        },
+        state: {
+          useMaxWidth: false,
+          nodeSpacing: 55,
+          rankSpacing: 75,
+          padding: 14,
+          titleTopMargin: 12,
+        },
+      },
     },
   } satisfies Preset.ThemeConfig,
 };

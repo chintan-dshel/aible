@@ -8,13 +8,13 @@ description: Entities, triples, GraphRAG, and hybrid retrieval — when structur
 
 ## What it is
 
-A knowledge graph represents information as entities connected by typed relationships. Data is stored as triples — subject, predicate, object — forming a network: `(Paris, capital_of, France)`, `(France, member_of, EU)`. Unlike flat documents or embedding vectors, the graph structure encodes *relationships* explicitly, making multi-hop queries possible: "which cities are capitals of EU member states?" traverses edges that a similarity search can't follow.
+A knowledge graph represents information as entities connected by typed relationships. Data is stored as triples — subject, predicate, object — forming a network: `(Paris, capital_of, France)`, `(France, member_of, EU)`. This is unlike embedding vectors — a piece of text turned into a list of numbers so that similar meanings end up with similar numbers, then searched by comparing those numbers ("similarity search") — which flatten text into a single point in space with no explicit connections between points. A knowledge graph instead encodes *relationships* explicitly, making multi-hop queries possible — a "hop" is one edge traversal, so a two-hop question follows two connections in sequence: "which cities are capitals of EU member states?" traverses edges that a similarity search can't follow.
 
 In the context of AI systems, knowledge graphs serve two roles. First, as a retrieval substrate for GraphRAG — hybrid retrieval that combines vector similarity search with graph traversal to answer relational questions. Second, as structured memory for agents that need to accumulate and query facts with more precision than embeddings provide.
 
 ## The problem it solves
 
-Vector RAG retrieves chunks semantically similar to a query. It works well for factual lookup ("what does the return policy say?") but struggles with relational questions:
+Vector RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt) retrieves chunks (smaller pieces a document has been split into) semantically similar to a query. It works well for factual lookup ("what does the return policy say?") but struggles with relational questions:
 
 - "Which employees reported to Alice during the Q4 acquisition?" — requires traversing org-chart edges
 - "What drugs interact with both compound A and compound B?" — requires multi-hop graph intersection
@@ -92,7 +92,9 @@ import networkx as nx
 
 class KnowledgeGraph:
     def __init__(self):
-        self.graph = nx.MultiDiGraph()
+        self.graph = nx.MultiDiGraph()  # a graph structure allowing more than
+        # one directed edge between the same two nodes (e.g. Alice both
+        # "works_at" and "reports_to" Bob)
 
     def add_triple(self, subject: str, predicate: str, obj: str, **attrs):
         self.graph.add_node(subject)
@@ -136,7 +138,7 @@ print(kg.multi_hop("Alice Chen", hops=2))
 
 Vector search retrieves chunks similar to a query but loses the *relationships between* entities — a question like "who reported to the VP who approved the merger?" is unanswerable from embeddings alone. GraphRAG addresses this by using vector similarity to find entry-point entities, then following graph edges to gather their relational context.
 
-A hop is one edge traversal: A → B is one hop, A → B → C is two hops. Always set a hop limit — unbounded traversal on a large graph can return thousands of entities (DoS risk) and cross tenant boundaries in multi-user deployments.
+Always set a hop limit — unbounded traversal on a large graph can return thousands of entities (a DoS risk — denial of service, meaning the system becomes too slow or overloaded to serve anyone) and cross tenant boundaries (a "tenant" is one customer or organization sharing infrastructure with others; "crossing" means one tenant's data leaking into another's results) in multi-user deployments.
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -313,7 +315,7 @@ for q in queries:
 
 - Queries require multi-hop relational reasoning ("find all employees who joined after the acquisition of Beta Inc")
 - Entity identity matters — multiple documents refer to the same entity with different names
-- Your domain has a natural ontology: org charts, drug databases, code dependency graphs, legal entity hierarchies
+- Your domain has a natural ontology — a fixed, well-understood set of categories and relationships, the way an org chart or a drug database already has one: org charts, drug databases, code dependency graphs, legal entity hierarchies
 - You need to explain *why* two entities are related, not just that their text is similar
 
 #### Prefer vector RAG when

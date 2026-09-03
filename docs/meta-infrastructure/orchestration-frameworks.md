@@ -8,9 +8,9 @@ description: LangChain, LlamaIndex, DSPy, and raw SDK — honest tradeoffs and w
 
 ## What it is
 
-Orchestration frameworks are libraries that provide abstractions for building LLM applications — chains of model calls, retrieval pipelines, agent loops, memory management, and tool integrations — so you don't build these from scratch on top of the raw model API.
+Orchestration frameworks are libraries that provide abstractions — pre-built, simplified interfaces that hide the messy plumbing underneath, so you write "chain these three steps" instead of the raw code that does it — for building LLM applications: chains of model calls, retrieval pipelines, agent loops, memory management, and tool integrations. They exist so you don't build these from scratch on top of the raw model API.
 
-The tradeoff is explicit: frameworks reduce boilerplate and provide tested implementations of common patterns, at the cost of abstraction overhead, framework lock-in, and debugging opacity when something breaks.
+The tradeoff is explicit: frameworks reduce boilerplate (repetitive setup code you'd otherwise write by hand every time) and provide tested implementations of common patterns, at the cost of abstraction overhead, framework lock-in, and debugging opacity when something breaks.
 
 ## The problem it solves
 
@@ -22,7 +22,7 @@ Orchestration frameworks provide pre-built versions of these components, along w
 
 ### LangChain
 
-LangChain provides composable components: LLMs, prompts, output parsers, retrievers, chains, and agents. Components implement a standard `invoke()` interface and can be chained with the `|` operator (LCEL — LangChain Expression Language):
+LangChain provides composable components: LLMs, prompts, output parsers, retrievers, chains, and agents. Components implement a standard `invoke()` interface and can be chained with the `|` operator (LCEL — LangChain Expression Language) — meaning one step's output is piped straight into the next step's input, the way piping commands together works on a command line:
 
 ```python
 from langchain_anthropic import ChatAnthropic
@@ -78,7 +78,7 @@ result = graph.invoke({"query": "What is the capital of France?", "context": "",
 
 ### LlamaIndex
 
-LlamaIndex is focused on RAG and knowledge retrieval — indexing documents, querying them, and integrating the results into model calls. Its primary abstractions are `Document`, `Index`, and `QueryEngine`:
+LlamaIndex is focused on RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt) and knowledge retrieval — indexing documents, querying them, and integrating the results into model calls. Its primary abstractions are `Document`, `Index`, and `QueryEngine`:
 
 ```python
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
@@ -96,7 +96,7 @@ response = query_engine.query("What is our return policy?")
 print(response)
 ```
 
-LlamaIndex handles chunking, embedding, indexing, retrieval, and prompt assembly. It's the fastest path to a working RAG prototype; less suited for complex multi-agent orchestration.
+LlamaIndex handles chunking (splitting documents into smaller pieces), embedding (converting each piece into a list of numbers representing its meaning), indexing, retrieval, and prompt assembly. It's the fastest path to a working RAG prototype; less suited for complex multi-agent orchestration.
 
 ### DSPy
 
@@ -122,7 +122,7 @@ result = qa(
 print(result.answer)
 ```
 
-DSPy's value proposition is that you can replace manual prompt engineering with an optimizer that empirically finds better prompts (or finetune data) on your eval set. The learning curve is steep; most teams don't need DSPy until manual prompt tuning has hit diminishing returns.
+DSPy's value proposition is that you can replace manual prompt engineering with an optimizer that empirically finds better prompts (or finetune data) on your eval set — a fixed collection of example inputs with known-good outputs, used to score whether a prompt is actually working. The learning curve is steep; most teams don't need DSPy until manual prompt tuning has hit diminishing returns.
 
 ### Raw SDK
 
@@ -236,7 +236,7 @@ Start with the raw SDK for any non-trivial production system. The 20% of additio
 
 Reach for LangChain or LlamaIndex when you need their integrations (document loaders, vector store connectors, pre-built tool sets) or when you're building a prototype and speed of development matters more than long-term maintainability.
 
-DSPy is the most interesting of the three for the long run — treating prompts as optimizable parameters rather than hand-crafted artifacts is the right direction. But it requires a strong eval set (which you should have anyway) and a mindset shift from prompt engineering to program synthesis. Reserve it for after you've manually tuned prompts and hit a plateau.
+DSPy is the most interesting of the three for the long run — treating prompts as optimizable parameters rather than hand-crafted artifacts is the right direction. But it requires a strong eval set (which you should have anyway) and a mindset shift from prompt engineering to program synthesis — treating the prompt as something a system searches for and assembles automatically, the way a compiler generates machine code, rather than something a person hand-writes. Reserve it for after you've manually tuned prompts and hit a plateau.
 
 :::
 

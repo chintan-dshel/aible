@@ -28,7 +28,9 @@ Each of these can be caught by a validation layer if you design it thoughtfully.
 
 ### Layer 1: Schema validation
 
-The simplest and cheapest validation: does the output conform to the expected structure? For structured outputs (JSON, Pydantic models), this is straightforward. For prose, it means checking length, format markers, or required sections.
+The simplest and cheapest validation: does the output conform to the expected structure? For structured outputs (JSON — a standard, machine-readable text format — validated against Pydantic models, Python classes that describe exactly what fields and types the data must have), this is straightforward. For prose, it means checking length, format markers, or required sections.
+
+The class below defines the exact shape a valid extraction must have; the function that follows parses the model's raw text and rejects anything that doesn't match — a missing field or wrong type raises an error instead of silently passing through:
 
 ```python
 from pydantic import BaseModel, Field, ValidationError
@@ -52,7 +54,7 @@ def validate_schema(raw_output: str) -> tuple[ExtractionResult | None, str]:
         return None, f"Schema violation: {e}"
 ```
 
-With `instructor`, this validation + retry loop is handled automatically:
+With `instructor` — a library that wraps the model API to add Pydantic validation and automatic retries — this validation + retry loop is handled automatically:
 
 ```python
 import anthropic
@@ -72,7 +74,7 @@ result = client.messages.create(
 
 ### Layer 2: Semantic validation (LLM-as-judge)
 
-Schema validation catches structural problems. Semantic validation asks whether the content is correct — a question that often requires another model call.
+Schema validation catches structural problems. Semantic validation asks whether the content is correct — a question that often requires another model call. The two functions below both ask a second, cheap model to grade the first model's answer: one checks whether every claim in the answer is actually backed by the source context, the other checks whether the answer even addresses the question that was asked.
 
 ```python
 import anthropic
@@ -116,7 +118,7 @@ JSON: {{"relevance_score": 1-5, "reasoning": "one sentence"}}"""
 
 ### Layer 3: Hallucination detection
 
-Hallucination detection is a specialization of faithfulness checking: does the answer make factual claims that aren't in the provided context? This is the critical validation for RAG systems.
+Hallucination detection is a specialization of faithfulness checking: does the answer make factual claims that aren't in the provided context? This is the critical validation for RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt before the model answers) systems.
 
 ```python
 def detect_hallucination(context: str, answer: str) -> dict:
@@ -169,7 +171,7 @@ def check_numerical_consistency(output: str) -> dict:
 
 ### Validation pipeline
 
-Chain validators in order of increasing cost, short-circuit on failure:
+Chain validators in order of increasing cost, and short-circuit on failure — stop at the first check that fails, rather than running every remaining check anyway:
 
 ```python
 from dataclasses import dataclass
@@ -257,7 +259,7 @@ def generate_with_validation(prompt: str, context: str, max_retries: int = 2) ->
 
 ## Concrete example
 
-A complete validation pipeline for a RAG-based document Q&A system:
+A complete validation pipeline for a RAG-based document Q&A system — generate an answer, reject it if it's suspiciously short, check faithfulness with a cheap model call, and if that fails, retry once with the failure fed back in before falling back to an honest "I don't know":
 
 ```python
 import anthropic
@@ -381,7 +383,7 @@ The retry loop is your first line of response to validation failure, but have a 
 
 **5. Not validating tool outputs before acting on them.** In agentic systems, the model's output often becomes an action (function call, database write, API call). Validate the intended action before executing it — not just after the model generates it.
 
-**6. Latency from synchronous validation.** A validation model call adds 200–400ms per generation. For latency-sensitive applications, run validation asynchronously and surface failures after-the-fact (for logging and retraining) rather than blocking the response. Reserve synchronous validation for high-stakes outputs.
+**6. Latency from synchronous validation.** A validation model call adds 200–400ms per generation. For latency-sensitive applications, run validation asynchronously — after the response has already gone back to the user, rather than making them wait for it — and surface failures after-the-fact (for logging and retraining) rather than blocking the response. Reserve synchronous validation, which does block the response until the check completes, for high-stakes outputs.
 
 **7. Using validation output as training signal without care.** Outputs that "passed" validation are not necessarily correct — they passed a probabilistic classifier. Treat validation passes as "probably okay" rather than ground truth for fine-tuning.
 

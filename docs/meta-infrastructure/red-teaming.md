@@ -28,7 +28,7 @@ Red teaming is not just about catching harmful outputs. It's about knowing your 
 
 ### Jailbreak taxonomy
 
-A jailbreak is a semantic exploit, not a code bug. The model's vulnerability is its instruction-following behavior: a sufficiently crafted prompt causes it to follow the attacker's instructions instead of the developer's. Unlike a buffer overflow, the "attack surface" is the model's entire context window.
+A jailbreak is a semantic exploit — an attack that works through the meaning of what's said, not by breaking the code itself the way a traditional software bug does (like a "buffer overflow," where a program is fed more data than it reserved room for and the excess corrupts nearby memory). The model's vulnerability is its instruction-following behavior: a sufficiently crafted prompt causes it to follow the attacker's instructions instead of the developer's. Unlike a code-level exploit, the "attack surface" is the model's entire context window — everything it can be shown in a single conversation.
 
 Adversarial prompts cluster into attack families. Recognizing the family helps you design targeted defenses:
 
@@ -59,7 +59,7 @@ Adversarial prompts cluster into attack families. Recognizing the family helps y
 The mechanism: each compliant response to a mild message creates conversational momentum — refusing the next, slightly more extreme message feels inconsistent with prior behavior. This is distinct from a single-turn attack and is the hardest family to block with static rules.
 
 **Encoding and obfuscation** — Bypassing text-level filters:
-- Base64 encoding harmful requests
+- Base64 encoding harmful requests (a standard way of representing text as a scrambled-looking string of characters, easily reversible but often invisible to a filter looking for plain words)
 - L33t speak, pig latin, or constructed languages
 - Splitting harmful words across turns
 
@@ -150,7 +150,7 @@ At scale, use an attacker LLM to generate adversarial prompts against the target
 
 :::caution[Attacker logs contain harmful content]
 
-The attacker LLM generates adversarial prompts that may include probes for CSAM, synthesis instructions, extremist content, and other harmful material. These appear in your logs and data pipelines. Apply the same data handling controls to attacker output as you would to harmful content itself. Human reviewers of these logs need appropriate context. Do not route attacker-generated prompts into training pipelines.
+The attacker LLM generates adversarial prompts that may include probes for CSAM (child sexual abuse material — one of the most serious categories a safety system must refuse under any circumstance), synthesis instructions, extremist content, and other harmful material. These appear in your logs and data pipelines. Apply the same data handling controls to attacker output as you would to harmful content itself. Human reviewers of these logs need appropriate context. Do not route attacker-generated prompts into training pipelines.
 
 :::
 

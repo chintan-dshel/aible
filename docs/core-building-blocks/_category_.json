@@ -1,6 +1,6 @@
 {
-  "label": "Core Building Blocks",
-  "position": 2,
+  "label": "Agentic Building Blocks",
+  "position": 4,
   "link": {
     "type": "doc",
     "id": "core-building-blocks/index"

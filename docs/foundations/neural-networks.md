@@ -8,13 +8,13 @@ description: Perceptrons, layers, activation functions, backpropagation — how 
 
 ## What it is
 
-A neural network is a stack of parameterized transformations. Each layer takes an input vector, multiplies it by a learned weight matrix, adds a bias, and passes the result through a non-linearity:
+A neural network is a stack of parameterized transformations. In plain terms: each layer takes a list of numbers in, runs it through a simple, adjustable transformation — multiply, add, then bend the result through a nonlinear step — and hands a new list of numbers to the next layer. Chain enough of those simple steps together, each one adjustable through training, and the whole stack can approximate very complicated relationships. Precisely: each layer takes an input vector, multiplies it by a learned weight matrix, adds a bias, and passes the result through a non-linearity:
 
 $$h^{(l)} = \sigma\!\left(W^{(l)}\, h^{(l-1)} + b^{(l)}\right)$$
 
-Chain enough of these and you get a universal function approximator — a function that can, given sufficient width and data, approximate any continuous mapping between inputs and outputs.
+Chain enough of these and you get a universal function approximator — a function that can, given sufficient width (how many neurons sit in a layer, side by side) and data, approximate any continuous mapping between inputs and outputs.
 
-The biological framing — artificial neurons loosely inspired by brain cells — is mostly a historical accident. The useful framing: each layer is a differentiable operation on vectors, and the whole network is a function we optimize by gradient descent.
+The biological framing — artificial neurons loosely inspired by brain cells — is mostly a historical accident. The useful framing: each layer is a differentiable operation (one whose output changes smoothly enough, as its inputs change, that you can calculate a direction of improvement from it) on vectors, and the whole network is a function we optimize by gradient descent — repeatedly nudging every number in the network a small step in whichever direction reduces its errors.
 
 ## The problem it solves
 
@@ -68,9 +68,9 @@ The choice of non-linearity determines both the network's expressive capacity an
 
 | Activation | Formula | Properties |
 |---|---|---|
-| Sigmoid | $1/(1+e^{-x})$ | Squashes to (0,1). Saturates at extremes — vanishing gradients. Legacy. |
+| Sigmoid | $1/(1+e^{-x})$ | Squashes to (0,1). Saturates at extremes — meaning for very large or very small inputs the output barely changes, so the training signal ("gradient") for that neuron shrinks toward nothing. Legacy. |
 | Tanh | $(e^x - e^{-x})/(e^x + e^{-x})$ | Zero-centered. Saturates less badly than sigmoid. Still limited for deep nets. |
-| ReLU | $\max(0, x)$ | The workhorse. Non-saturating above zero, sparse activations. Suffers from dead neurons. |
+| ReLU | $\max(0, x)$ | The workhorse. Non-saturating above zero, sparse activations. Suffers from "dead neurons" — ones stuck outputting zero forever, covered under Common Failure Modes below. |
 | Leaky ReLU | $\max(0.01x,\, x)$ | Small slope below zero prevents dead neurons. Not always better in practice. |
 | GELU | $x \cdot \Phi(x)$ | Smooth probabilistic ReLU. Default in BERT, GPT, and most transformer architectures. |
 | SiLU / Swish | $x \cdot \sigma(x)$ | Similar to GELU. Default in Llama and many modern language models. |
@@ -95,15 +95,17 @@ flowchart LR
     I --> H1 --> H2 --> O
 ```
 
-In an image classifier, shallow layers tend to detect edges and textures; deeper layers detect parts and objects. Nobody programs this hierarchy — it emerges from minimizing the loss on enough data.
+In an image classifier, shallow layers tend to detect edges and textures; deeper layers detect parts and objects. Nobody programs this hierarchy — it emerges from minimizing the loss (the number that scores how wrong the network's current output is) on enough data.
 
 ### Backpropagation
 
-To minimize the loss, we need the gradient of the loss with respect to every weight. Backpropagation computes this by applying the chain rule recursively from the output layer back to the input:
+The plain-language version first: run an example through the network, see how wrong the output was, then work backward layer by layer, figuring out how much each individual weight contributed to that error and nudging it in the direction that would have made the error smaller. Repeat across millions of examples and the weights converge on something that works.
+
+To minimize the loss, we need the gradient of the loss with respect to every weight — a number, for each individual weight, saying which direction to nudge it and by roughly how much. Backpropagation computes this by applying the chain rule (a calculus rule for tracking how a change at one point ripples through a series of dependent steps) recursively from the output layer back to the input:
 
 $$\frac{\partial \mathcal{L}}{\partial W^{(l)}} = \frac{\partial \mathcal{L}}{\partial h^{(l)}} \cdot \frac{\partial h^{(l)}}{\partial W^{(l)}}$$
 
-If you know how much the loss changes with respect to a layer's output ($\partial \mathcal{L} / \partial h^{(l)}$), you can compute how much it changes with respect to that layer's inputs ($\partial \mathcal{L} / \partial h^{(l-1)}$). The gradient flows backwards through the same operations as the forward pass, multiplying local derivatives at each step.
+If you know how much the loss changes with respect to a layer's output ($\partial \mathcal{L} / \partial h^{(l)}$), you can compute how much it changes with respect to that layer's inputs ($\partial \mathcal{L} / \partial h^{(l-1)}$). The gradient flows backwards through the same operations as the forward pass, multiplying local derivatives (each step's own small, local "how much did I contribute" number) at each step.
 
 Modern frameworks (PyTorch, JAX) build a computational graph during the forward pass and differentiate it automatically — you write the forward pass and get gradients for free.
 
@@ -111,7 +113,7 @@ Modern frameworks (PyTorch, JAX) build a computational graph during the forward 
 
 If all weights start at zero, all neurons compute the same output and the same gradient — the network never breaks symmetry and training stalls.
 
-**Xavier/Glorot initialization** (for sigmoid/tanh): draw weights from a distribution scaled by $\sqrt{2/(n_{\text{in}} + n_{\text{out}})}$, balancing variance across both the input and output fan so activations neither explode nor vanish.
+**Xavier/Glorot initialization** (for sigmoid/tanh): draw weights from a distribution scaled by $\sqrt{2/(n_{\text{in}} + n_{\text{out}})}$, balancing variance across both the number of inputs and outputs a layer connects to (its "fan") so activations neither explode nor vanish.
 
 **He initialization** (for ReLU): scale by $\sqrt{2/n_{\text{in}}}$, compensating for the fact that ReLU zeroes out half its inputs on average. PyTorch uses He initialization for convolutional layers by default.
 
@@ -214,8 +216,8 @@ The same pattern — `forward`, `loss`, `backward`, `step` — scales to network
 
 #### Use a simpler model when
 
-- Your data is tabular with fewer than ~10K rows — XGBoost almost always wins here with less pain
-- Interpretability is a hard requirement — a two-layer MLP is already a black box
+- Your data is tabular with fewer than ~10K rows — XGBoost (a gradient-boosted decision tree method, not a neural network at all) almost always wins here with less pain
+- Interpretability is a hard requirement — a two-layer MLP (multilayer perceptron, the plain stack-of-layers network this page describes) is already a black box
 - Latency or memory is severely constrained and a simpler model is close enough
 
 #### The practical question
@@ -234,17 +236,17 @@ Can you solve this with logistic regression or XGBoost? If yes: do that first, m
 
 ## Common failure modes and gotchas
 
-**1. Vanishing gradients.** In deep networks with saturating activations (sigmoid, tanh), gradients shrink exponentially as they propagate backward. Layers near the input receive near-zero gradient and barely update. Fix: use ReLU/GELU, add LayerNorm, add residual connections.
+**1. Vanishing gradients.** In deep networks with saturating activations (sigmoid, tanh — see the table above), gradients shrink exponentially as they propagate backward. Layers near the input receive near-zero gradient and barely update. Fix: use ReLU/GELU, add LayerNorm, add residual connections.
 
-**2. Dead ReLU neurons.** If a ReLU neuron's pre-activation is negative for every example, its output is permanently zero — no gradient, no update. A small fraction of dead neurons is normal and harmless; it becomes a problem when a large fraction across many layers dies simultaneously, which can happen with high learning rates or poor initialization. Diagnosis: monitor the fraction of zero activations per layer. Fix: lower the learning rate, use He initialization, or switch to GELU.
+**2. Dead ReLU neurons.** If a ReLU neuron's pre-activation — its weighted-sum-plus-bias value, before the activation function is applied — is negative for every example, its output is permanently zero — no gradient, no update. A small fraction of dead neurons is normal and harmless; it becomes a problem when a large fraction across many layers dies simultaneously, which can happen with high learning rates or poor initialization. Diagnosis: monitor the fraction of zero activations per layer. Fix: lower the learning rate, use He initialization, or switch to GELU.
 
-**3. Exploding gradients.** Gradients grow exponentially rather than vanishing — manifests as NaN losses or wildly oscillating curves early in training. Fix: gradient clipping (`torch.nn.utils.clip_grad_norm_`), reduce the learning rate, verify weight initialization.
+**3. Exploding gradients.** Gradients grow exponentially rather than vanishing — manifests as NaN ("not a number," the value a computation produces once it overflows past any representable number) losses or wildly oscillating curves early in training. Fix: gradient clipping (`torch.nn.utils.clip_grad_norm_`, which caps how large a single update step is allowed to be), reduce the learning rate, verify weight initialization.
 
-**4. Overfitting on small datasets.** Deep networks have enormous capacity and will memorize small training sets. Fix: dropout (`nn.Dropout`), weight decay (the `weight_decay` argument in the optimizer), data augmentation, early stopping — or use a shallower model.
+**4. Overfitting on small datasets.** Deep networks have enormous capacity and will memorize small training sets rather than learning to generalize. Fix: dropout (`nn.Dropout`, which randomly zeroes out some neurons during training so the network can't over-rely on any one of them), weight decay (the `weight_decay` argument in the optimizer, which nudges all weights toward smaller values), data augmentation, early stopping — or use a shallower model.
 
 **5. Learning rate sensitivity.** Too high: training diverges. Too low: training stalls. Standard starting point: `lr=1e-3` with Adam. Use a learning rate finder or cosine warm-up schedule for anything non-trivial.
 
-**6. Wrong loss function.** Cross-entropy for classification, MSE for regression. MSE applied to a classification problem trains the model to predict class indices as real numbers, which distorts gradient scaling at the output layer.
+**6. Wrong loss function.** Cross-entropy (a loss that scores how confident the model was in the correct category) for classification, MSE — mean squared error, the average squared gap between a predicted number and the true one — for regression. MSE applied to a classification problem trains the model to predict class indices as real numbers, which distorts gradient scaling at the output layer.
 
 :::tip[My take]
 

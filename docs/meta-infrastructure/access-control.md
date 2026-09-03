@@ -14,12 +14,12 @@ This is distinct from guardrails, which limit what outputs the model generates. 
 
 ## The problem it solves
 
-Agents with tools are capable of causing real-world harm. An agent that can read files, query databases, send emails, and execute code — without access restrictions — becomes a high-value target for prompt injection, jailbreaks, and misuse:
+Agents with tools are capable of causing real-world harm. An agent that can read files, query databases, send emails, and execute code — without access restrictions — becomes a high-value target for prompt injection (adversarial text that tricks the model into following an attacker's instructions instead of its real ones), jailbreaks (crafted prompts that get the model to ignore its own safety constraints), and misuse:
 
 - A prompt injection in a retrieved document tells the agent to exfiltrate user data via email
 - A jailbroken agent uses its code execution tool to download and run malware
 - A bug in the agent's routing logic causes it to call a delete endpoint instead of a read endpoint
-- An agent processing user A's request accidentally accesses user B's data because tenant isolation is missing
+- An agent processing user A's request accidentally accesses user B's data because tenant isolation — the guarantee that one customer or organization sharing the same infrastructure can never read, write, or act on another's data — is missing
 
 The consequences scale with capability. A weak chatbot that outputs wrong text causes confusion; a capable agent with unrestricted tool access causes data breaches, financial transactions, and irreversible file deletions.
 
@@ -49,7 +49,10 @@ TOOL_REGISTRY: dict[str, Tool] = {}
 
 def register_tool(required_permission: str):
     def decorator(fn: Callable) -> Callable:
-        # The decorator registers metadata. input_schema.properties is intentionally
+        # A decorator is a function that wraps another function to add behavior --
+        # here, every function marked @register_tool(...) below gets automatically
+        # added to TOOL_REGISTRY with its required permission attached.
+        # This one registers metadata. input_schema.properties is intentionally
         # left empty here — populate it per-tool with parameter names, types, and
         # descriptions. An empty schema causes the LLM to receive no parameter
         # guidance and will silently degrade tool selection and calling accuracy.
@@ -244,9 +247,13 @@ class ConfirmationGatedAgent(AccessControlledAgent):
             print(f"\n[CONFIRMATION REQUIRED]")
             print(f"  Tool: {tool_name}")
             print(f"  Args: {json.dumps(args, indent=2)}")
-            # input() is for CLI/local use only. For web deployments, replace with
-            # an async approval queue: pause execution, send a confirmation request
-            # (Slack, webhook, UI modal), and resume when the callback arrives.
+            # input() is for CLI (command-line interface -- a text-based way of
+            # running commands, as opposed to clicking in an app) /local use only.
+            # For web deployments, replace with an async approval queue: pause
+            # execution here, send a confirmation request somewhere a person will
+            # see it (Slack, a webhook -- an HTTP request your app sends out to
+            # notify another system, a UI modal), and resume when that system
+            # calls back to say the request was approved.
             confirm = input("  Approve? (yes/no): ").strip().lower()
             if confirm != "yes":
                 return f"Action '{tool_name}' cancelled by user."
@@ -430,7 +437,7 @@ For multi-user systems, tenant isolation is the hardest problem. The easiest arc
 
 **3. Permission escalation simulation** — Build an agent with a read-only role. Write a red team prompt that tries to escalate to write permissions via: (a) direct request, (b) hypothetical framing, (c) persona injection, (d) gradual escalation. Document which attempts are blocked by the execution layer vs. the model, and whether any succeed.
 
-**4. Scoped credential pipeline** — Using any cloud provider's IAM, create three IAM roles: reader, writer, deleter. Build an agent that accepts a role parameter and assumes the corresponding IAM role via short-lived credentials before making storage API calls. Verify that a reader-role agent fails to delete.
+**4. Scoped credential pipeline** — Using any cloud provider's IAM (Identity and Access Management -- the system that controls which credentials can do what), create three IAM roles: reader, writer, deleter. Build an agent that accepts a role parameter and assumes the corresponding IAM role via short-lived credentials before making storage API calls. Verify that a reader-role agent fails to delete.
 
 ## Going deeper
 

@@ -14,22 +14,22 @@ The insight is that the teacher's soft probability distribution contains more in
 
 ## The problem it solves
 
-Large, capable models are slow and expensive to run at scale. A 70B parameter model produces better outputs than a 7B model on most tasks, but costs ~10× more to run and has ~10× higher latency. For high-volume, latency-sensitive applications, this is often a non-starter.
+Large, capable models are slow and expensive to run at scale. A 70B parameter (an internal, adjustable number the model learns during training) model produces better outputs than a 7B model on most tasks, but costs ~10× more to run and has ~10× higher latency. For high-volume, latency-sensitive applications, this is often a non-starter.
 
-Distillation offers a path to smaller, faster models that retain most of the teacher's quality on a specific task — without the compute requirements of the teacher. The tradeoff: distilled models perform well on the task distribution they were trained on and degrade faster on out-of-distribution inputs than general-purpose large models.
+Distillation offers a path to smaller, faster models that retain most of the teacher's quality on a specific task — without the compute requirements of the teacher. The tradeoff: distilled models perform well on the task distribution they were trained on — the range of inputs they actually saw during training — and degrade faster on out-of-distribution (OOD) inputs — inputs unlike anything in that range — than general-purpose large models.
 
 ## How it works under the hood
 
 ### Core distillation objective
 
-Standard supervised training minimizes cross-entropy loss against hard labels (the correct answer). Distillation adds a second term: the Kullback-Leibler divergence between the teacher's output distribution and the student's:
+Standard supervised training minimizes cross-entropy loss against hard labels (the correct answer, with no shading — right or wrong, nothing in between). Distillation adds a second term measuring how different the student's full spread of guesses is from the teacher's, not just whether it picked the right top answer — the Kullback-Leibler divergence between the teacher's output distribution and the student's. Concretely: if the teacher was 70% confident in "Paris," 15% in "London," and 5% in "Berlin," this term pushes the student toward that same spread, not just toward "Paris" alone:
 
 ```
 Loss = α × CrossEntropy(student_output, hard_label)
      + (1 - α) × KL_divergence(teacher_soft_logits, student_soft_logits)
 ```
 
-The temperature parameter T controls how "soft" the teacher's distribution appears. Higher temperature makes the distribution flatter (more uncertainty), which exaggerates the relative probabilities of non-top candidates and provides more signal to the student:
+The temperature parameter T controls how "soft" the teacher's distribution appears. Higher temperature makes the distribution flatter (more uncertainty), which exaggerates the relative probabilities of non-top candidates and provides more signal to the student — at T=4 (a typical setting), a teacher that was 70/15/5/5/5 across five candidates gets pulled toward something closer to 35/25/20/10/10, so the student sees more of the runner-up signal instead of an almost-all-or-nothing top pick:
 
 ```python
 import torch
@@ -73,7 +73,7 @@ Anthropic's Terms of Service prohibit using Claude API outputs to train or fine-
 
 ### Distillation via API (black-box distillation)
 
-When you don't have access to teacher logits (e.g., distilling from a closed API model like Claude), you can only use the generated text — not the full probability distribution. This is "black-box" or "response distillation":
+When you don't have access to teacher logits — the model's raw, pre-probability output scores, one per possible next word — (e.g., distilling from a closed API model like Claude), you can only use the generated text — not the full probability distribution. This is "black-box" or "response distillation":
 
 ```python
 import anthropic
@@ -127,7 +127,7 @@ This dataset can then be used to fine-tune a smaller open model (Llama 3 8B, Mis
 
 ### Fine-tuning the student
 
-With a dataset of (input, teacher_response) pairs, fine-tune the student using standard supervised fine-tuning:
+With a dataset of (input, teacher_response) pairs, fine-tune (continue training an already-trained model on new, smaller data) the student using standard supervised fine-tuning. The code below uses LoRA — instead of updating the whole model, freeze it and train only a small, separate pair of matrices alongside it, then merge them back in — to keep the fine-tuning cheap:
 
 ```python
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments
@@ -292,7 +292,7 @@ The OOD degradation problem is real and is the main reason distillation fails in
 
 **2. Quality filter study** — Generate 500 teacher responses for a task. Group them by confidence score (low/medium/high). Train three student models: on all 500, on medium+high confidence only, on high confidence only. Measure whether filtering improves student quality or just reduces training data harmfully.
 
-**3. OOD detection** — Build the OOD detector described in the My take: embed all training inputs, embed production queries, compute cosine similarity to nearest training example. Threshold at 0.7: below threshold, route to teacher; above, use student. Measure how many production queries are OOD and what the quality difference is for in-distribution vs. OOD queries.
+**3. OOD detection** — Build the OOD detector described in the My take: embed (convert into a list of numbers representing meaning) all training inputs, embed production queries, compute cosine similarity (a measure of how closely two of those number-lists point in the same direction) to nearest training example. Threshold at 0.7: below threshold, route to teacher; above, use student. Measure how many production queries are OOD and what the quality difference is for in-distribution vs. OOD queries.
 
 **4. Data volume study** — Generate teacher responses at 100, 500, 1,000, 2,000, and 5,000 examples. Train a student on each dataset size. Plot student quality vs. data volume. Find the knee of the curve — the point where adding more data gives diminishing returns. This tells you the minimum viable training set size for your task.
 

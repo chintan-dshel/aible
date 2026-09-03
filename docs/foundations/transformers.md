@@ -19,7 +19,7 @@ Stack $N$ of these blocks and you have a transformer. The [Attention Mechanism](
 
 ## The problem it solves
 
-RNNs and LSTMs had two structural problems: an information bottleneck (long-range dependencies get compressed through sequential hidden states) and sequential computation (you cannot compute step $t$ until step $t-1$ is done — no GPU parallelism during training).
+RNNs and LSTMs (older network designs that read a sequence one step at a time, carrying forward a running summary of everything so far) had two structural problems. First, an information bottleneck: everything the network has read has to be squeezed into one fixed-size running summary (a "hidden state") before it can be used, and long-range relationships get lost in that squeeze. Second, sequential computation: because each step's summary depends on the step before it, you cannot compute step $t$ until step $t-1$ is done — no GPU parallelism (running many calculations at once on the same hardware) during training.
 
 Attention solves both. But attention alone isn't an architecture — you still need:
 
@@ -27,7 +27,7 @@ Attention solves both. But attention alone isn't an architecture — you still n
 - Something to do with each token after it has gathered context (the feedforward layer)
 - A way to stabilize and deepen the network (residual connections, LayerNorm)
 - A way to stack multiple "viewpoints" on the same token (multi-head attention)
-- A way to generate sequences autoregressively (the decoder and causal masking)
+- A way to generate sequences autoregressively — one token at a time, each new token conditioned on everything generated so far (the decoder and causal masking)
 
 The transformer packages all of these cleanly.
 
@@ -35,7 +35,7 @@ The transformer packages all of these cleanly.
 
 ### Input representation
 
-Before entering the transformer, each token is represented as a dense vector — an embedding. For a vocabulary of size $V$ and embedding dimension $d_{\text{model}}$, this is a lookup table $E \in \mathbb{R}^{V \times d_{\text{model}}}$: each token ID maps to a $d_{\text{model}}$-dimensional vector.
+Before entering the transformer, each token (roughly, a word or word-fragment) is represented as a dense vector — a list of numbers, called an embedding — that the model learned to represent what that token means. For a vocabulary of size $V$ and embedding dimension $d_{\text{model}}$, this is a lookup table $E \in \mathbb{R}^{V \times d_{\text{model}}}$: each token ID maps to a $d_{\text{model}}$-dimensional vector.
 
 Attention is permutation-invariant — "the cat sat" and "sat the cat" produce the same attention scores without positional information. Positional encodings inject token order.
 
@@ -47,7 +47,7 @@ The model can learn to use relative position differences from these encodings. T
 
 **Learned positional embeddings**: a second lookup table, one vector per position. Simple and effective; used in BERT and most early transformers. Same generalization limitation.
 
-**Rotary Position Embedding (RoPE)**: rotates Q and K vectors by an angle proportional to their position before computing attention scores. Naturally encodes relative position in the attention matrix rather than adding absolute position to embeddings. Better extrapolation and the current default for most LLMs (Llama, Mistral, GPT-4).
+**Rotary Position Embedding (RoPE)**: rotates the query and key vectors — the two internal representations attention uses to decide what's relevant to what, covered on the [Attention Mechanism](attention.md) page — by an angle proportional to their position before computing attention scores. Naturally encodes relative position in the attention matrix rather than adding absolute position to embeddings. Better extrapolation and the current default for most LLMs (Llama, Mistral, GPT-4).
 
 **ALiBi**: adds a position-dependent bias directly to attention logits — a linear penalty proportional to the distance between tokens. Requires no learned parameters. Generalizes well to longer sequences than seen during training.
 
@@ -75,11 +75,13 @@ flowchart TB
     LN1 --> ADD2
 ```
 
-Note: modern LLMs typically use **pre-norm** (LayerNorm before the sublayer, not after), which stabilizes training better than the original post-norm arrangement. The diagram shows the logical structure; the ordering of norm and residual matters in practice.
+Note: modern LLMs typically use **pre-norm** (LayerNorm — the rescaling step that keeps each token's numbers in a consistent range — before the sublayer, meaning before attention or the feedforward step, rather than after), which stabilizes training better than the original post-norm arrangement. The diagram shows the logical structure; the ordering of norm and residual matters in practice.
 
 The feedforward network inside each block:
 
 $$\text{FFN}(x) = \text{GELU}(xW_1 + b_1)\, W_2 + b_2$$
+
+(Two matrix multiplications with a smooth, nonlinear bend — GELU — applied in between.)
 
 Where $W_1 \in \mathbb{R}^{d_{\text{model}} \times d_{\text{ff}}}$ and $d_{\text{ff}}$ is typically $4 \times d_{\text{model}}$. This layer processes each token position independently — no interaction between positions here. Interaction happens in attention; transformation happens in the feedforward.
 
@@ -123,14 +125,14 @@ In decoder-only and decoder components, the attention matrix is masked to preven
 
 $$\text{scores}_{ij} = \begin{cases} QK^T_{ij} / \sqrt{d_k} & \text{if } j \leq i \\ -\infty & \text{if } j > i \end{cases}$$
 
-After softmax, the $-\infty$ entries become zero — token $i$ receives no information from token $j > i$. This allows training on the full sequence in parallel (the labels are just the input shifted by one position) while maintaining the autoregressive property that generation requires.
+After softmax — the step that turns raw scores into a set of positive numbers summing to 1, so they behave like genuine odds — the $-\infty$ entries become zero — token $i$ receives no information from token $j > i$. This allows training on the full sequence in parallel (the labels are just the input shifted by one position) while maintaining the autoregressive property that generation requires.
 
 ### Scaling
 
-The transformer's dominant empirical property: performance scales predictably with model size, dataset size, and compute, following power laws (Kaplan et al., 2020). Hoffmann et al. 2022 ("Chinchilla") later revised the optimal compute allocation, finding that most large models were undertrained — the optimal ratio is roughly 1 token per parameter, not 100. Both papers agree on the power-law structure; they disagree on where to allocate a fixed compute budget. This regularity is why models got so large so fast: there was no clear ceiling, and each doubling of compute produced a predictable improvement.
+The transformer's dominant empirical property: performance scales predictably with model size, dataset size, and compute, following power laws — a mathematical relationship where doubling the input (say, compute) produces a consistent, predictable fractional improvement in output, rather than a fixed or diminishing-to-nothing one (Kaplan et al., 2020). Hoffmann et al. 2022 ("Chinchilla") later revised the optimal compute allocation, finding that most large models were undertrained — the optimal ratio is roughly 1 token per parameter, not 100. Both papers agree on the power-law structure; they disagree on where to allocate a fixed compute budget. This regularity is why models got so large so fast: there was no clear ceiling, and each doubling of compute produced a predictable improvement.
 
 Key parameters:
-- $d_{\text{model}}$: the width of the residual stream — token representation dimensionality
+- $d_{\text{model}}$: how long each token's vector is as it flows through the residual connections from block to block — the network's main "width," and the size every other internal dimension is defined relative to
 - $N$: number of transformer blocks stacked
 - $h$: number of attention heads per block
 - $d_{\text{ff}}$: feedforward expansion factor (typically $4 \times d_{\text{model}}$)
@@ -231,7 +233,7 @@ The decoder-only trend is strong: GPT, Llama, Claude, Gemini, and Mistral are al
 
 **4. Attention head redundancy in fine-tuned models.** After task-specific fine-tuning, many attention heads in the early layers become redundant and attend nearly uniformly. This is normal and can be exploited for inference speedup (attention head pruning), but it means that the effective number of "active" attention patterns is often much smaller than $h$.
 
-**5. KV cache sizing.** At inference time, the key-value cache grows as (batch size × number of layers × context length × $2 \times d_{\text{model}}$). For long-context requests with large batches, the KV cache dominates GPU memory — often exceeding model weight memory. Plan for this before deploying.
+**5. KV cache sizing.** At inference time, the model caches the key and value vectors — attention's internal representations — from every token already generated, so it doesn't have to redo that work on every new token. The cache grows as (batch size × number of layers × context length × $2 \times d_{\text{model}}$) — concretely, at $d_{\text{model}} = 4{,}096$, 32 layers, and a 32K-token context, one request's cache alone runs into the tens of gigabytes. For long-context requests with large batches, the KV cache dominates GPU memory — often exceeding model weight memory. Plan for this before deploying.
 
 **6. Tokenization artifacts at boundaries.** Because transformers operate on tokens rather than characters, they sometimes fail at tasks that require character-level reasoning: counting letters, reversing strings, rhyming. The model isn't "bad at spelling" in the way a human would be — it's operating on a different abstraction layer entirely.
 

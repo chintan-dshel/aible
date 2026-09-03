@@ -8,13 +8,13 @@ description: How to talk to a language model effectively — zero-shot, few-shot
 
 ## What it is
 
-Prompting is the practice of constructing text inputs to elicit specific, reliable outputs from a language model. Because the model's weights are frozen at inference time, the context window is the only lever you have. Everything the model knows about your task, your constraints, your tone, and your desired output format has to live in the text you send.
+Prompting is the practice of constructing text inputs to elicit specific, reliable outputs from a language model. Because the model's weights (the internal numbers it learned during training) are frozen — fixed, not being updated — at inference time (when the model is actually being used to answer, as opposed to being trained), the context window (the block of text the model can see and use in one call) is the only lever you have. Everything the model knows about your task, your constraints, your tone, and your desired output format has to live in the text you send.
 
-This makes prompting both simpler and stranger than it looks. Simpler because there are no parameters to tune, no training loops, no GPU bills. Stranger because what the model understands from your text is mediated by everything it saw during pretraining — you are not issuing instructions to a deterministic parser, you are sampling from a distribution conditioned on your input.
+This makes prompting both simpler and stranger than it looks. Simpler because there are no parameters to tune, no training loops, no GPU bills. Stranger because of how the model actually decides what to say: it doesn't parse your text like a program reading a command, checking it against fixed rules for one guaranteed interpretation. It's more like a well-read editor finishing your sentence — drawing on everything it's ever read to guess the most fitting continuation, with some real randomness in the mix. What the model understands from your text is mediated by everything it saw during pretraining (the initial, large-scale training pass on raw text) — you are not issuing instructions to a deterministic parser, you are sampling from a distribution conditioned on your input.
 
 ## The problem it solves
 
-A pretrained LLM will continue any text in a plausible direction. Without explicit guidance, that direction is "more text of the kind that follows text like this in the training corpus." The task of prompting is to narrow that distribution — to make "the correct response to your specific task" the most probable continuation.
+A pretrained LLM (large language model) will continue any text in a plausible direction. Without explicit guidance, that direction is "more text of the kind that follows text like this in the training corpus" — the vast body of text the model learned from. The task of prompting is to narrow that distribution — to make "the correct response to your specific task" the most probable continuation.
 
 This is why prompting matters even for highly capable models: the same model that writes perfect Python will give mediocre output on a Python task if the prompt is ambiguous or poorly structured. The model's capability is a ceiling; your prompt determines how close to that ceiling you get.
 
@@ -31,7 +31,7 @@ Review: "The battery lasts forever but the screen is terrible."
 Sentiment:
 ```
 
-The model completes the text with the most probable next token given the pattern — here, most likely "Negative" or "Mixed."
+The model completes the text with the most probable next token (roughly, word or word-fragment) given the pattern — here, most likely "Negative" or "Mixed."
 
 ### Few-shot prompting
 
@@ -57,7 +57,7 @@ Few-shot is most useful when the task is novel, ambiguous, or requires a specifi
 
 ### Chain-of-thought (CoT)
 
-Ask the model to reason step by step before producing the final answer. This works because the intermediate reasoning tokens shift the conditional distribution — by the time the model reaches the answer, it has "considered" the intermediate steps, which increases accuracy on multi-step problems.
+Ask the model to reason step by step before producing the final answer. This works because each reasoning token the model writes becomes part of what it reads next — by the time it reaches the answer, its own visible working has narrowed down what a good next word looks like, the same way showing your work on paper narrows down what the right final line should be. This increases accuracy on multi-step problems.
 
 ```text
 Q: A train travels 60 km/h for 2.5 hours, then 80 km/h for 1.5 hours. Total distance?
@@ -65,14 +65,14 @@ Q: A train travels 60 km/h for 2.5 hours, then 80 km/h for 1.5 hours. Total dist
 Let's think step by step:
 ```
 
-CoT emerged spontaneously in sufficiently large models (>100B parameters at time of discovery) and can be elicited with phrases like "Let's think step by step," "Walk through your reasoning," or simply by showing a few worked examples with intermediate steps.
+CoT emerged spontaneously in sufficiently large models — above roughly 100 billion parameters (the internal numbers a model learns; GPT-3-scale and up) at time of discovery — and can be elicited with phrases like "Let's think step by step," "Walk through your reasoning," or simply by showing a few worked examples with intermediate steps.
 
 **Zero-shot CoT**: Add "Think step by step" before the answer.
 **Few-shot CoT**: Show 2–3 worked examples with explicit intermediate reasoning.
 
 ### System prompts
 
-In instruction-tuned models, the system prompt is a special position in the conversation that sets the model's role, constraints, and behavior for the entire session. It is prepended to the conversation before user turns.
+In instruction-tuned models (models fine-tuned specifically to follow conversational instructions, rather than just complete text), the system prompt is a special position in the conversation that sets the model's role, constraints, and behavior for the entire session. It is prepended to the conversation before user turns.
 
 ```text
 You are a concise technical writer. Answer questions about Python in clear, 
@@ -89,7 +89,7 @@ System prompt guidance:
 
 System prompts are not encrypted or privileged at the architecture level — they are part of the context window the model processes. A determined adversary can often extract them by asking the model to repeat, summarize, or continue from its instructions. Treat system prompt contents as "hard to extract casually, but not secret." Never put true secrets (API keys, passwords, PII) in a system prompt.
 
-Prompt injection is the direct consequence: a user message that says "Ignore previous instructions and..." attempts to override your system prompt at the model level. The mitigation is not to hide the system prompt better — it's to keep user input structurally separate. Always pass user-provided text as a user-turn message, never interpolated into the system prompt. This way the model's chat template maintains the role boundary: system-role content cannot be overridden by user-role content, regardless of what the user writes. Test your prompt against injection attempts before deployment.
+Prompt injection is the direct consequence: a user message that says "Ignore previous instructions and..." attempts to override your system prompt at the model level. The mitigation is not to hide the system prompt better — it's to keep user input structurally separate. Always pass user-provided text as a user-turn message, never interpolated (pasted directly in as text) into the system prompt. This way the model's chat template (the fixed wrapper format the model was trained to expect around a conversation) maintains the role boundary: system-role content cannot be overridden by user-role content, regardless of what the user writes. Test your prompt against injection attempts before deployment.
 
 :::
 
@@ -99,9 +99,9 @@ Prompt injection is the direct consequence: a user message that says "Ignore pre
 
 **Role assignment**: "You are an expert X" shifts the distribution toward formal, technical, domain-appropriate language. Not magic, but measurably effective.
 
-**Output format specification**: Explicitly describe the output structure. "Respond with a JSON object containing keys: decision (boolean), confidence (0.0–1.0), and reasoning (string)." If JSON mode is available, use it.
+**Output format specification**: Explicitly describe the output structure. "Respond with a JSON object (a standard machine-readable text format) containing keys: decision (boolean, i.e. true or false), confidence (0.0–1.0), and reasoning (string)." If JSON mode is available, use it.
 
-**Delimiters for structure**: Use XML tags, triple backticks, or `---` separators to demarcate sections. `<context>`, `<question>`, `<instructions>` prevents the model from confusing which part of the prompt is which.
+**Delimiters for structure**: Use XML tags (markup like `<context>...</context>` that wraps and labels a section of text), triple backticks (```` ``` ````, commonly used to mark off a code block), or `---` separators to demarcate sections. `<context>`, `<question>`, `<instructions>` prevents the model from confusing which part of the prompt is which.
 
 ```xml
 <instructions>
@@ -116,7 +116,7 @@ the supporting evidence, and the conclusion.
 
 **Positive instructions**: Tell the model what to do, not only what to avoid. "Avoid verbosity" is weaker than "Answer in two sentences maximum."
 
-**Asking for confidence**: "If you're unsure, say 'I don't know' rather than guessing." Models are not well-calibrated by default; explicit instruction helps.
+**Asking for confidence**: "If you're unsure, say 'I don't know' rather than guessing." Models are not well-calibrated by default — a model's stated confidence doesn't reliably track how often it's actually right; explicit instruction helps.
 
 ## Concrete example
 
@@ -180,7 +180,7 @@ print(result)
 
 #### Consider alternatives when
 
-- The task requires output format consistency at high volume — fine-tuning or constrained decoding is more reliable
+- The task requires output format consistency at high volume — fine-tuning (continuing to train the model on your own labeled examples) or constrained decoding (mechanically restricting which words the model is even allowed to generate next, guaranteeing a valid format) is more reliable
 - The model consistently fails despite well-constructed prompts — the task may be out-of-distribution, and prompting won't close the gap
 - Latency is critical and few-shot examples are making your prompt very long — fine-tuning moves the examples into the weights
 
@@ -220,7 +220,7 @@ System prompt quality matters more than most people treat it. A vague system pro
 
 **5. Ambiguous task framing.** "Improve this email" — improve how? Shorter, more professional, better call to action? Without a criterion, the model picks one. Specify the improvement axis.
 
-**6. Over-reliance on role prompts.** "You are a world-class expert in X" does not actually grant the model knowledge it doesn't have. Role prompts shift tone and confidence; they don't add capability. If the model doesn't know X, the expert persona will confidently hallucinate X.
+**6. Over-reliance on role prompts.** "You are a world-class expert in X" does not actually grant the model knowledge it doesn't have. Role prompts shift tone and confidence; they don't add capability. If the model doesn't know X, the expert persona will confidently hallucinate X — state a plausible-sounding but fabricated answer as if it were fact.
 
 ## Project ideas
 

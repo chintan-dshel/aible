@@ -8,7 +8,7 @@ description: Capability-based routing, cost routing, and fallback chains — sen
 
 ## What it is
 
-Model routing is the practice of dynamically selecting which model (or model configuration) handles a given request, based on the request's characteristics — its complexity, the latency budget, the cost constraint, or the required capabilities.
+Model routing is the practice of dynamically selecting which model (or model configuration) handles a given request, based on the request's characteristics — its complexity, the latency budget (how much delay before a response is acceptable), the cost constraint, or the required capabilities.
 
 Rather than sending every request to the same model, a routing layer inspects each request and directs it to the most appropriate option: a fast/cheap model for simple queries, a more capable model for complex ones, a specialized fine-tuned model for domain-specific tasks, or a fallback model when the primary is unavailable.
 
@@ -16,13 +16,15 @@ Rather than sending every request to the same model, a routing layer inspects ea
 
 A single model choice is always a compromise. A fast, cheap model handles simple queries well but underperforms on complex ones. A highly capable model handles everything well but is overkill (and overpriced) for simple queries. Real-world traffic is heterogeneous — some queries are trivial, some are nuanced — and routing matches resources to requirements.
 
-The cost difference is significant: Claude Haiku costs roughly 4–5× less per token than Sonnet. If 70% of your queries could be handled by Haiku, routing that 70% reduces your model API bill substantially — often by 60–70% on the routed fraction.
+The cost difference is significant: Claude Haiku costs roughly 4–5× less per token (roughly, a word or word-fragment — the unit model calls are billed and measured in) than Sonnet. If 70% of your queries could be handled by Haiku, routing that 70% reduces your model API bill substantially — often by 60–70% on the routed fraction.
 
 ## How it works under the hood
 
 ### Complexity-based routing
 
-Classify each request by complexity before dispatching it to a model. Use a lightweight classifier (fast model, heuristics, or an embedding-based classifier) that runs in < 50ms and returns a routing decision.
+Classify each request by complexity before dispatching it to a model. Use a lightweight classifier — something that automatically sorts input into categories — (fast model, heuristics, or an embedding-based classifier, one that compares the query's meaning-vector to reference examples) that runs in < 50ms and returns a routing decision.
+
+The code below implements the cheapest version of this: a handful of regex patterns (text-pattern matchers) that catch obviously-simple or obviously-complex phrasings, falling back to word count as a rough proxy when neither matches.
 
 ```python
 import anthropic
@@ -82,7 +84,7 @@ def route_and_call(query: str, system: str = "") -> dict:
 
 ### LLM-as-router
 
-Use a fast model to make the routing decision by classifying the request against a routing schema:
+Use a fast model to make the routing decision by classifying the request against a routing schema (a fixed, named list of categories the model must pick from). The function below sends the query to Haiku with a five-category prompt, parses the category back out of its JSON reply, and looks up which model that category should go to:
 
 ```python
 import json
@@ -185,7 +187,7 @@ def call_with_fallback(
 
 ### Load-based routing
 
-In high-throughput systems, route based on current load or quota status — send overflow to secondary providers or model tiers:
+In high-throughput systems, route based on current load or quota status — send overflow to secondary providers or model tiers. The class below tracks a shared token budget and downgrades to a cheaper model as it runs low; the lock ensures that if two requests check the remaining budget at the same instant, they can't both spend the same tokens before either one's deduction is recorded:
 
 ```python
 import threading
@@ -211,7 +213,7 @@ router = TokenBudgetRouter(hourly_budget=500_000)
 
 ## Concrete example
 
-A multi-tier customer support router that balances cost and quality:
+A multi-tier customer support router that balances cost and quality. The scoring function below adds points for query length, for reasoning-signal words ("why," "compare"), and for sensitive-topic words ("legal," "refund") — so a short, plain question like "What are your business hours?" scores near 0 and routes to the cheap model, while a long, frustrated billing complaint scores high enough to route to the stronger model and get flagged for review:
 
 ```python
 import anthropic
@@ -330,7 +332,7 @@ The fallback chain is not optional for production systems. Models have occasiona
 
 **5. Fallback masking systematic failures.** If your primary model fails and falls back silently, you may not notice a real problem. Log every fallback event separately from normal traffic. Alert when fallback rate exceeds threshold.
 
-**6. Routing doesn't account for context length.** A query with a 50K-token retrieved context routed to a cheap model may fail if that model has a shorter context window. Check context length compatibility before routing.
+**6. Routing doesn't account for context length.** A query with a 50K-token retrieved context routed to a cheap model may fail if that model has a shorter context window (the block of text a model can see and use in one call). Check context length compatibility before routing.
 
 ## Project ideas
 

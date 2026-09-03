@@ -12,24 +12,24 @@ Traditional application monitoring tracks uptime, error rates, and latency. LLM 
 
 A 99.9% success rate means almost nothing for an LLM system if "success" is defined as "returned HTTP 200". The model can return a confident, fluent, completely wrong answer and every monitoring dashboard stays green. Meanwhile, quality has degraded — the model started refusing more requests, hallucinating product names, or subtly shifting tone — and no alert fired.
 
-LLM monitoring is hard because the output space is free text and ground truth labels are expensive to produce at scale. The challenge is detecting quality regression quickly without requiring a human to read every response.
+LLM monitoring is hard because the output space is free text and ground truth labels — the actual, verified correct answer for a given input, usually requiring a human to produce — are expensive to produce at scale. The challenge is detecting quality regression quickly without requiring a human to read every response.
 
 ## How it works under the hood
 
 **Sampling-based LLM-as-judge.** Evaluate a random sample of production responses (typically 1–5%) using a separate judge model. The judge scores each response on task-specific dimensions (accuracy, relevance, safety, tone). Track average judge scores over time. A sustained drop = quality regression signal.
 
-**Input distribution monitoring.** Embed incoming prompts and track the distribution against a baseline. A shift in embedding distribution (cosine distance from baseline centroid, or increases in distribution entropy) signals that users are sending different kinds of requests — which may break prompts tuned for the original distribution.
+**Input distribution monitoring.** In plain terms: convert incoming prompts into a numeric fingerprint of their meaning ("embed" them), and watch whether that fingerprint drifts away from what a normal day's traffic usually looks like. Concretely, embed incoming prompts and track the distribution against a baseline — the average fingerprint of past "normal" traffic. A shift in embedding distribution (cosine distance — how far a new fingerprint points from that baseline average, or "centroid" — growing, or increases in distribution entropy, a measure of how spread-out and varied the incoming requests are) signals that users are sending different kinds of requests — which may break prompts tuned for the original distribution.
 
-**Structural metrics.** Track response-level signals that don't require a judge: average response length, refusal rate (% of responses containing "I can't help with"), completion length relative to `max_tokens` (if many responses hit `max_tokens`, the model is being asked to do more than it can in the token budget), and finish reason distribution.
+**Structural metrics.** Track response-level signals that don't require a judge: average response length, refusal rate (% of responses containing "I can't help with"), completion length relative to `max_tokens` (if many responses hit `max_tokens`, the model is being asked to do more than it can in the token budget), and finish reason distribution — how often calls end normally versus getting cut off versus erroring, tracked as a breakdown across the whole traffic sample.
 
-**Latency and cost.** Standard metrics — but with LLM-specific dimensions: p50/p95/p99 latency per model, tokens per request (input + output separately), cost per request, and cache hit rate (if prompt caching is active).
+**Latency and cost.** Standard metrics — but with LLM-specific dimensions: p50/p95/p99 latency per model (the midpoint response time, and the values the slowest 5% and 1% of requests fall above), tokens per request (input + output separately), cost per request, and cache hit rate (how often a request was served from a saved earlier result instead of calling the model again, if prompt caching is active).
 
-**Alert hierarchy.** Define tiers: immediate page (error rate > 5%, latency p99 > 10s), async alert (judge score drop > 10% over 24h, refusal rate spike), weekly digest (trend reports, cost drift, distribution shift).
+**Alert hierarchy.** Define tiers: immediate page (an urgent, wake-someone-up alert — the term comes from paging an on-call engineer; error rate > 5%, latency p99 > 10s), async alert (judge score drop > 10% over 24h, refusal rate spike), weekly digest (trend reports, cost drift, distribution shift).
 
 ## Concrete example
 
 :::caution[Privacy: ResponseRecord contains raw user prompts]
-`ResponseRecord.prompt` stores the user's input verbatim. Before writing records to any persistent store (database, BigQuery, S3), apply PII scrubbing or tokenization. Truncating to 500 characters is a cost control measure, not a privacy control. In user-facing applications, treat every prompt as potentially containing names, emails, medical details, or credentials.
+`ResponseRecord.prompt` stores the user's input verbatim. Before writing records to any persistent store (database, BigQuery, S3), apply PII (personally identifiable information — names, emails, SSNs, and the like) scrubbing or tokenization — replacing sensitive values with meaningless placeholder tokens so the original data isn't stored. Truncating to 500 characters is a cost control measure, not a privacy control. In user-facing applications, treat every prompt as potentially containing names, emails, medical details, or credentials.
 :::
 
 ```python
@@ -201,7 +201,7 @@ def monitored_call(prompt: str) -> str:
     return text
 ```
 
-The monitor records every response and judges 5% of them. `check_alerts()` can be called on a schedule (e.g., every 5 minutes via a cron job) to detect regressions.
+The monitor records every response and judges 5% of them. `check_alerts()` can be called on a schedule (e.g., every 5 minutes via a cron job — a scheduled task that runs automatically at a fixed interval) to detect regressions.
 
 ## When to use it / when not to
 
@@ -238,7 +238,7 @@ Langfuse or Helicone for tracing + Prometheus/Grafana for operational metrics is
 
 ## Project ideas
 
-- **Quality regression detector**: maintain a rolling 7-day quality score baseline and alert if the current 24h average drops more than 2 standard deviations below the baseline.
+- **Quality regression detector**: maintain a rolling 7-day quality score baseline and alert if the current 24h average drops more than 2 standard deviations below the baseline — roughly, further below the typical range than about 95% of normal day-to-day fluctuation would explain.
 - **Prompt version tracker**: tag each LLM call with the prompt version that generated it. When you update a prompt, compare quality scores before and after across matched request types.
 - **Cost anomaly detector**: track daily token spend per model. Alert if any model's spend increases more than 30% day-over-day (indicates traffic spike, runaway loop, or prompt regression that generates long outputs).
 

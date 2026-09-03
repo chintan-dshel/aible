@@ -8,9 +8,9 @@ description: How to measure whether your AI system actually works — LLM-as-jud
 
 ## What it is
 
-An eval (evaluation) is a test that measures whether an AI system produces outputs you'd consider correct, useful, or safe — on a defined set of inputs. It is the AI equivalent of a unit test suite, with two important differences: the outputs are often non-deterministic, and "correct" often requires judgment rather than exact matching.
+An eval (evaluation) is a test that measures whether an AI system produces outputs you'd consider correct, useful, or safe — on a defined set of inputs. It is the AI equivalent of a unit test suite, with two important differences: the outputs are often non-deterministic — the same input can produce a different output on different runs — and "correct" often requires judgment rather than exact matching.
 
-Without evals, you are flying blind. You don't know if a prompt change helped or hurt, whether a model upgrade is actually better for your task, whether a fine-tuned model degraded on cases you didn't train on, or whether your system's accuracy has drifted over the past month.
+Without evals, you are flying blind. You don't know if a prompt change helped or hurt, whether a model upgrade is actually better for your task, whether a fine-tuned (further trained on your own data) model degraded on cases you didn't train on, or whether your system's accuracy has drifted over the past month.
 
 ## The problem it solves
 
@@ -28,7 +28,7 @@ Evals provide a principled way to measure system quality, track it over time, an
 
 ### Eval types
 
-**Exact match / regex match** — the output must match a specific string or pattern. Use for tasks with deterministic answers: structured extraction, factual lookup, code generation with known expected output. Fast, cheap, no LLM required.
+**Exact match / regex match** — the output must match a specific string or pattern (regex: a text-pattern matcher). Use for tasks with deterministic answers: structured extraction, factual lookup, code generation with known expected output. Fast, cheap, no LLM (large language model) required.
 
 ```python
 def eval_exact(output: str, expected: str) -> bool:
@@ -88,7 +88,7 @@ For most AI systems, four dimensions cover most of what matters:
 | Dimension | Question | Eval method |
 |---|---|---|
 | **Correctness** | Is the answer right? | Exact match, LLM-as-judge with reference |
-| **Faithfulness** | Does the answer stay within the provided context? | LLM-as-judge, RAGAS |
+| **Faithfulness** | Does the answer stay within the provided context? | LLM-as-judge, RAGAS (a metrics library purpose-built for scoring RAG systems) |
 | **Relevance** | Does the answer address the question asked? | LLM-as-judge |
 | **Safety** | Does the answer avoid harmful content? | Classifier, LlamaGuard, human review |
 
@@ -105,6 +105,8 @@ An eval set is a collection of (input, expected output or rubric) pairs. Quality
 **Coverage:** ensure your eval set covers the range of input types you expect in production. A customer support eval set should include billing questions, technical questions, account questions, and edge cases — not just the easy, well-formed examples.
 
 ### Running evals at scale
+
+The code below is a small harness: it runs every eval case through the system being tested, has the judge score each output, and then summarizes the results into a mean score, a pass rate, and a list of the worst-scoring failures.
 
 ```python
 import json
@@ -153,7 +155,7 @@ def summarize(results: list[EvalResult]) -> dict:
 
 ## Concrete example
 
-A complete eval pipeline for a RAG-based customer support system:
+A complete eval pipeline for a RAG (retrieval-augmented generation: searching a document store and pasting the relevant results into the prompt)-based customer support system:
 
 ```python
 import anthropic
@@ -224,7 +226,7 @@ Every AI system that goes to production needs evals. There is no exception. The 
 
 **Minimum bar:** 20–50 handcrafted examples, scored by LLM-as-judge, run before every prompt change or model upgrade. This takes a few hours to set up and catches most regressions.
 
-**Production bar:** 200+ examples, human-validated judge calibration, automated runs in CI, dashboards tracking scores over time.
+**Production bar:** 200+ examples, human-validated judge calibration, automated runs in CI (continuous integration — an automated pipeline that runs checks whenever code changes), dashboards tracking scores over time.
 
 #### When LLM-as-judge is sufficient vs. when you need humans
 
@@ -254,7 +256,7 @@ Run your evals before you ship a change, not after. The purpose of evals is to c
 
 ## Common failure modes and gotchas
 
-**1. Eval set memorization.** You use the eval set to iterate on your prompt, then report the eval score as validation accuracy. This is overfitting: the eval set is now training data. Always hold out a test set that you never look at during development.
+**1. Eval set memorization.** You use the eval set to iterate on your prompt, then report the eval score as if it measured fresh, unseen performance ("validation accuracy" — accuracy on data the system wasn't tuned against). This is overfitting: by tuning against the eval set repeatedly, it has effectively become training data (data the system was shaped to fit), so the score no longer tells you anything new. Always hold out a test set that you never look at during development.
 
 **2. LLM judge bias.** The judge model has its own biases — it favors verbosity, its own style, and confident-sounding answers. This can cause it to score incorrect-but-confident outputs higher than correct-but-hedged ones. Calibrate your judge against human scores on 50+ examples before trusting it.
 
@@ -264,7 +266,7 @@ Run your evals before you ship a change, not after. The purpose of evals is to c
 
 **5. Eval-metric gaming.** After enough iterations, you optimize for your eval metric rather than actual quality. The metric and quality diverge. Rotate your judge model, add new eval cases regularly, and occasionally do human spot-checks even when automated scores look good.
 
-**6. Ignoring latency and cost.** An eval that only scores quality misses the operational picture. Include latency (P50, P95) and token cost per call in your eval dashboard — quality improvements that triple cost or double latency may not be acceptable.
+**6. Ignoring latency and cost.** An eval that only scores quality misses the operational picture. Include latency (P50, the midpoint response time; P95, the value 95% of requests fall under, so the slowest 1-in-20 is worse than this) and token (roughly, word or word-fragment — the unit calls are billed and measured in) cost per call in your eval dashboard — quality improvements that triple cost or double latency may not be acceptable.
 
 ## Project ideas
 

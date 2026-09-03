@@ -16,13 +16,13 @@ Calibrated confidence enables: routing (high confidence → serve, low → escal
 
 ## How it works under the hood
 
-**Logprobs.** Some APIs return the log-probability of each output token. The average or minimum logprob across the completion is a proxy for model confidence. Low logprob = the model was "surprised" by its own output — a sign of uncertainty. Limitations: logprobs are available on OpenAI and some open-weight models but not on Anthropic's API as of mid-2025.
+**Logprobs.** Some APIs return the log-probability of each output token (roughly, word or word-fragment — the unit the model generates one at a time). The average or minimum logprob across the completion is a proxy for model confidence. Low logprob = the model was "surprised" by its own output — a sign of uncertainty. Limitations: logprobs are available on OpenAI and some open-weight models (models whose trained parameters are published for anyone to download and run, unlike a closed API-only model) but not on Anthropic's API as of mid-2025.
 
-**Self-consistency.** Sample N completions at temperature > 0. Measure agreement: if 9 of 10 answers say "1847" and 1 says "1887", the majority answer has 90% self-consistency. Higher agreement = higher confidence. Works without logprob access.
+**Self-consistency.** Sample N completions at temperature (the setting controlling how much randomness goes into each generated answer) > 0. Measure agreement: if 9 of 10 answers say "1847" and 1 says "1887", the majority answer has 90% self-consistency. Higher agreement = higher confidence. Works without logprob access.
 
 **Verbalized confidence.** Ask the model to rate its own confidence ("On a scale of 0–10, how confident are you?"). Cheap and available everywhere, but unreliable — models are systematically overconfident and sycophantic in their self-assessments.
 
-**Calibration.** A model is *calibrated* if when it says it's 80% confident, it's right about 80% of the time. Calibration is measured on held-out data using the Expected Calibration Error (ECE) metric and visualized as a reliability diagram. Calibration doesn't produce a per-request confidence score — it tells you how to interpret the scores you're already generating. This is the operational point: if your scores are uncalibrated, a score of 0.7 might correspond to only 40% actual accuracy in practice, making any threshold you set meaningless without empirical validation on labeled data.
+**Calibration.** A model is *calibrated* if when it says it's 80% confident, it's right about 80% of the time. Calibration is measured on held-out data — examples kept aside for testing, never used to tune the system — using the Expected Calibration Error (ECE) metric and visualized as a reliability diagram (a plot of stated confidence against actual accuracy; a perfectly calibrated model traces a straight diagonal line). Calibration doesn't produce a per-request confidence score — it tells you how to interpret the scores you're already generating. This is the operational point: if your scores are uncalibrated, a score of 0.7 might correspond to only 40% actual accuracy in practice, making any threshold you set meaningless without empirical validation on labeled data.
 
 ## Concrete example
 
@@ -134,7 +134,7 @@ def expected_calibration_error(
     return ece
 ```
 
-For factual QA, self-consistency across 7 samples gives a meaningful confidence signal. An answer that 6 of 7 samples agree on (confidence = 0.86) should be served. An answer only 2 of 7 agree on (confidence = 0.29) should escalate. Note: 7 samples means 7 API calls — factor the N× cost into your routing threshold decisions. Running self-consistency on every request may be unacceptable for latency-sensitive applications; consider reserving it for high-stakes queries or running it offline to build a calibration dataset.
+For factual QA (question-answering) tasks, self-consistency across 7 samples gives a meaningful confidence signal. An answer that 6 of 7 samples agree on (confidence = 0.86) should be served. An answer only 2 of 7 agree on (confidence = 0.29) should escalate. Note: 7 samples means 7 API calls — factor the N× cost into your routing threshold decisions. Running self-consistency on every request may be unacceptable for latency-sensitive applications; consider reserving it for high-stakes queries or running it offline to build a calibration dataset.
 
 ## When to use it / when not to
 
@@ -165,7 +165,7 @@ For factual QA, self-consistency across 7 samples gives a meaningful confidence 
 
 **Logprobs ≠ calibration.** A high average logprob means the model was fluent, not that it was correct. Fluent hallucinations have high logprobs. Calibration on held-out data is the only way to know if a score means anything.
 
-**Self-consistency with one model = correlated errors.** If the model is wrong, it often agrees with itself across samples. Self-consistency underestimates uncertainty on systematic biases. Ensemble across multiple models for more independent error modes.
+**Self-consistency with one model = correlated errors.** If the model is wrong, it often agrees with itself across samples. Self-consistency underestimates uncertainty on systematic biases. Ensemble — combine outputs from multiple different models, so their mistakes are less likely to line up — across multiple models for more independent error modes.
 
 **Verbalized confidence is sycophantic.** Models rate themselves highly especially after giving a detailed-sounding answer. Treat verbalized confidence as a ranking signal (this answer > that answer) not an absolute threshold.
 
@@ -177,7 +177,7 @@ For factual QA, self-consistency across 7 samples gives a meaningful confidence 
 
 - **Calibration dashboard**: run the model on a labeled validation set monthly; plot the reliability diagram and track ECE over time. Alert when ECE degrades (model update changed calibration).
 - **Confidence-gated human review queue**: automatically route low-confidence outputs to a Slack channel for spot review. Track what % of escalated items were actually wrong vs. correctly uncertain.
-- **Cheap confidence classifier**: generate 1,000 prompts with self-consistency labels, then fine-tune a small classifier (logistic regression on embeddings) that approximates self-consistency at single-sample cost.
+- **Cheap confidence classifier**: generate 1,000 prompts with self-consistency labels, then fine-tune (continue training) a small classifier — here, logistic regression, a simple model that scores each input feature with a single weight — on embeddings (the prompt converted into a list of numbers representing its meaning) that approximates self-consistency at single-sample cost.
 
 ## Going deeper
 

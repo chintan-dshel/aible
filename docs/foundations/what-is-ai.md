@@ -162,7 +162,7 @@ classifier = pipeline("text-classification", model="distilbert-base-uncased")
 
 Raw text in. The model learns its own intermediate representations and handles novel phrasing patterns it was never explicitly trained on — because it built a model of language, not a list of rules.
 
-The tradeoff: each level requires more data and compute, and offers less interpretability.
+The tradeoff: each level requires more data and compute, and offers less interpretability — how easily a person can look at the model and understand *why* it produced a given answer.
 
 ## When to use it / when not to
 
@@ -170,7 +170,7 @@ The tradeoff: each level requires more data and compute, and offers less interpr
 
 - You have labeled examples but can't write the rules explicitly
 - Your data is tabular/structured (XGBoost often wins here)
-- You need a genuinely interpretable model — logistic regression and shallow decision trees are; a 500-tree XGBoost ensemble is not, despite being "traditional ML"
+- You need a genuinely interpretable model — logistic regression (a model that scores each input feature with a single weight, so you can read off exactly how much each one pushed the answer) and shallow decision trees (a short, followable chain of yes/no questions) are; a 500-tree XGBoost ensemble is not, despite being "traditional ML"
 - Data is limited (deep learning needs more of it)
 
 #### Use deep learning when
@@ -181,7 +181,7 @@ The tradeoff: each level requires more data and compute, and offers less interpr
 
 #### Don't use ML at all when
 
-- The rules are simple and writable — a lookup table beats a neural net at constant-time retrieval
+- The rules are simple and writable — a lookup table beats a neural net at constant-time retrieval (looking something up takes the same, near-instant amount of time no matter how large the table gets)
 - You need formal correctness guarantees (ML systems fail probabilistically)
 - Data is too scarce and you can't generate synthetic examples
 - You need to audit every decision for regulation — requirements are tightening in finance, healthcare, and hiring, not loosening; verify domain-specific rules before assuming ML is permissible
@@ -200,7 +200,7 @@ The "AI vs. rules" framing is almost always a false choice. The best production 
 |---|---|
 | scikit-learn | Standard algorithms on tabular data; everything that fits in RAM |
 | XGBoost / LightGBM | Tabular data where you want to win competitions or maximize accuracy |
-| statsmodels | You need statistical inference (p-values, confidence intervals), not just prediction |
+| statsmodels | You need statistical inference — quantifying how confident you should be that an effect is real, not just predicting an outcome (p-values, confidence intervals) |
 
 #### Deep learning frameworks
 
@@ -224,7 +224,7 @@ The "AI vs. rules" framing is almost always a false choice. The best production 
 
 **2. Label leakage** — your training labels contain information that won't be available at inference time. Classic example: predicting hospital readmission using a feature like "was discharged to rehab" — information you can't know until after the decision you're trying to make.
 
-**3. Benchmark overfitting** — optimizing for a metric until the metric stops measuring what you actually care about. A spam filter optimized purely for F1 on a static test set may be brittle on new campaigns using novel phrasing.
+**3. Benchmark overfitting** — optimizing for a metric until the metric stops measuring what you actually care about. A spam filter optimized purely for F1 (a single combined score balancing how many real spam messages it catches against how many legitimate messages it wrongly flags) on a static test set may be brittle on new campaigns using novel phrasing.
 
 **4. Assuming ML beats simple baselines** — a logistic regression or a lookup table often outperforms a neural network when data is scarce. Always start with the simplest possible baseline and measure the gap before reaching for complexity.
 

@@ -10,7 +10,7 @@ LLM APIs fail in ways that traditional services don't. Rate limits, server timeo
 
 ## The problem it solves
 
-HTTP 200 doesn't mean the call succeeded. An LLM API can return a 200 with an empty `choices` array, a finish reason of `"length"` (output was cut off), or a content-filtered response that looks like success. At the same time, transient failures — rate limits (429), server errors (500, 529), and network timeouts — need retry logic that doesn't hammer the API during an outage.
+HTTP 200 doesn't mean the call succeeded. An LLM API can return a 200 with an empty `choices` array (the list of candidate responses the API returns — empty means the call technically succeeded but produced nothing), a finish reason of `"length"` (output was cut off), or a content-filtered response that looks like success. At the same time, transient failures — rate limits (429), server errors (500, 529), and network timeouts — need retry logic that doesn't hammer the API during an outage.
 
 Without explicit handling, these failures silently corrupt downstream data or crash request handlers in unpredictable ways.
 
@@ -166,7 +166,7 @@ The Anthropic SDK's built-in retries (`anthropic.Anthropic(max_retries=3)`) are 
 
 **Circuit breaker too aggressive.** If the threshold is too low (e.g., open on 1 failure), transient errors permanently block traffic. Require `min_calls` before evaluating and use a rolling window, not a lifetime counter.
 
-**Global circuit breaker in multi-tenant deployments.** The `_circuit` singleton above is shared across all callers. In a multi-tenant service, one tenant's failures — or deliberate quota exhaustion — can open the circuit for every other tenant. Consider per-tenant or per-API-key circuit breakers, or exclude quota-exhaustion errors from the shared circuit's failure accounting.
+**Global circuit breaker in multi-tenant deployments.** The `_circuit` singleton (one shared instance used everywhere, rather than a separate one per caller) above is shared across all callers. In a multi-tenant (multiple customers or organizations sharing the same infrastructure) service, one tenant's failures — or deliberate quota exhaustion — can open the circuit for every other tenant. Consider per-tenant or per-API-key circuit breakers, or exclude quota-exhaustion errors from the shared circuit's failure accounting.
 
 ## Project ideas
 

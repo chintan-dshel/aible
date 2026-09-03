@@ -1,0 +1,49 @@
+---
+sidebar_position: 0
+title: Agentic Architecture Patterns
+description: Eight design decisions you will face in any multi-agent system, each given as a problem, a diagram, and a test you can apply to your own system.
+---
+
+# Agentic Architecture Patterns
+
+Eight design decisions you will face in any multi-agent system worth running in production. Each chapter has the same shape:
+
+1. **The problem in one diagram** — what goes wrong without the pattern
+2. **The pattern** — the mechanism, drawn before it is described, with a small worked instance
+3. **Decision rules** — when to use it and when not to, closing with one bolded test you can run against your own system
+4. **Failure modes** — what goes wrong when the pattern is applied badly
+5. **Where it shows up in the teardowns** — proof, not preview: links into the teardowns showing the pattern holding or breaking in real code
+6. **Reference material** — the deeper reference pages for this topic
+
+## Before you start
+
+These chapters assume you've read [How LLMs Work](../foundations/how-llms-work) and the [Agentic Building Blocks](../core-building-blocks/) section, in particular [Function Calling](../core-building-blocks/function-calling) — the agent loop, meaning a model repeatedly picking a tool, seeing the result, and deciding what to do next, which is what chapter 1's "autonomy" end of the spectrum actually *is* — and [Multi-Agent Systems](../core-building-blocks/multi-agent-systems), which covers topologies: the different shapes several agents can be arranged in, one after another, side by side, or a router handing work to specialists, which chapter 1 refines.
+
+Two numbers worth having before chapter 1. First, cost: a call to Claude's mid-tier model ("Sonnet"), at a few thousand tokens of context — roughly a few thousand words of text the model has to read for that one call — costs a fraction of a cent. That sounds negligible until an agent loop runs unchecked for ten steps instead of one; now it's ten of those, not one. Second, reliability: if five agent calls each hand off to the next at 95% reliability, the chain as a whole doesn't succeed 95% of the time, it succeeds about 77% of the time (0.95 multiplied by itself five times). Chapter 2 is the pattern that exists because of that second number.
+
+## Chapters
+
+| # | Chapter | One line |
+|---|---|---|
+| 1 | [Orchestration vs. autonomy](./orchestration-vs-autonomy) | Can you write down, right now, the fixed sequence of calls this task requires? If yes, you don't need a loop. |
+| 2 | [Stage gates](./stage-gates) | Ask: if this gate fails on a real run tomorrow, what happens next, and who finds out? |
+| 3 | [State machines](./state-machines) | Search your code for every place this state gets written — do they all call the same function? |
+| 4 | [LLM-as-judge](./llm-as-judge) | If I ran this judge against twenty examples I've already scored myself, would it agree with me eight times out of ten? |
+| 5 | [QA pipelines](./qa-pipelines) | Can you name, for each reviewer, one category of defect the other reviewers would not have caught? |
+| 6 | [Cost-aware model routing](./cost-aware-model-routing) | For the last expensive call, can you say which rule sent it there and what it cost — both, for the same call? |
+| 7 | [Memory layers](./memory-layers) | For this memory, who can write to it, and separately, who can read a given entry back out? |
+| 8 | [Failure modes and attack surfaces](./failure-modes-and-attack-surfaces) | For every place this system writes content a future prompt might read, was that write ever checked the way a live user message is? |
+
+## Reading the diagrams
+
+Every diagram on this site uses the same seven node types:
+
+- <span className="dg-swatch dg-swatch--orch"></span> **Orchestrator / control** — code that decides what runs next
+- <span className="dg-swatch dg-swatch--agent"></span> **Agent** — a model call with a prompt and, usually, a job
+- <span className="dg-swatch dg-swatch--gate"></span> **Gate / check** — a point where output is validated before anything else happens
+- <span className="dg-swatch dg-swatch--store"></span> **Store** — a database, file, or memory the system reads and writes
+- <span className="dg-swatch dg-swatch--human"></span> **Human** — a person in the loop
+- <span className="dg-swatch dg-swatch--external"></span> **External / untrusted** — input or a service the system does not control
+- <span className="dg-swatch dg-swatch--fail"></span> **Failure path** — where things go when a check fails
+
+Solid arrows are control flow, or what happens next. Dashed arrows are side effects — things that happen without waiting for a result, off to the side of the main sequence.
